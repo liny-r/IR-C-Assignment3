@@ -1,1 +1,6 @@
 Freddie Mac data/
+Origination_Historical_Data/
+Monthly_Performance_historical_data_time/
+processed/*.parquet
+.DS_Store
+.claude/
