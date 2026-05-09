@@ -153,19 +153,6 @@ The Andersen--Gill TV-Cox uses 10\,K loans from the monthly panel.
   \label{fig:eda_duration}
 \end{figure}
 
-\begin{figure}[h]
-  \centering
-  \includegraphics[width=\linewidth]{processed/E1_eda_duration_overlay}
-  \caption{Superimposed duration density curves, normalised within each
-    event type (proportion per month). Dashed vertical lines mark group
-    medians. Prepayment density peaks sharply near month~15 and decays
-    rapidly (burnout); default density is flatter and right-shifted,
-    peaking near month~60; censored loans concentrate in the first
-    30~months reflecting recent originations still in their early
-    performance window.}
-  \label{fig:eda_duration_overlay}
-\end{figure}
-
 Table~\ref{tab:eda_summary} summarises the three groups across the
 full 34\,M-loan dataset.
 
@@ -186,18 +173,6 @@ Censored  & 11{,}510{,}158 & 33.8\% & 30\,mo & 756 & 71.2\% & 4.37\% & 33.1 & 28
 \bottomrule
 \end{tabular}
 \end{table}
-
-\begin{figure}[h]
-  \centering
-  \includegraphics[width=\linewidth]{processed/E1_eda_covariates}
-  \caption{Covariate profiles by event type (six features). Whiskers
-    span the 5th--95th percentile. Defaulted borrowers show lower
-    FICO ($-44$\,pts), higher LTV ($+8.6$\,pp), higher rate
-    ($+0.85$\,pp), and higher DTI ($+4.6$\,pp) relative to prepaid.
-    Censored loans have the largest balances (\$285\,K median), consistent
-    with recent high-price originations that are rate-locked.}
-  \label{fig:eda_covariates}
-\end{figure}
 
 \begin{figure}[h]
   \centering
