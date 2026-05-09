@@ -232,18 +232,20 @@ story += [
     p("Two separate Cox models are fitted — one for each cause — treating the other "
       "cause as censored at exit. Features: 8 numeric (FICO, LTV, DTI, UPB, "
       "mortgage rate, unemployment, HPI YoY, rate incentive) + 4 one-hot "
-      "(loan purpose × 2, occupancy × 2)."),
+      "(loan purpose × 2, occupancy × 2). Both charts sorted ascending by log-HR."),
     sp(4),
-    add_image(img("E1_cause_specific_cox.png"), max_h=3.0*inch),
-    caption("Fig 7. Cause-specific Cox 95% CI forest plot. "
-            "CreditScore and LTV have opposite signs between causes, "
-            "illustrating the misrepresentation in a naive combined model."),
+    add_image(img("E1_cox_prepay.png"), max_h=3.4*inch),
+    caption("Fig 8. Prepayment cause-specific Cox forest plot (sorted ascending). "
+            "Rate incentive and LoanPurpose=Purchase drive the largest positive hazard; "
+            "CreditScore has a positive effect (high-FICO refinances faster)."),
     sp(4),
-    p("<b>Key finding:</b> the naive combined-Cox coefficient is a blend of two "
-      "economically opposite processes. For CreditScore, the prepayment HR is "
-      "positive (high-FICO borrowers refinance faster) while the default HR is "
-      "negative (high-FICO borrowers default less). A single coefficient averages "
-      "these out and misrepresents both risks."),
+    add_image(img("E1_cox_default.png"), max_h=3.4*inch),
+    caption("Fig 9. Default cause-specific Cox forest plot (sorted ascending). "
+            "LTV and DTI drive the largest positive default hazard; CreditScore strongly "
+            "negative — opposite sign to prepayment, confirming the need for cause-specific models."),
+    sp(4),
+    p("<b>Key finding:</b> CreditScore and LTV have <b>opposite signs</b> between causes. "
+      "A naive combined-Cox coefficient averages these out and misrepresents both risks."),
     PageBreak(),
 ]
 
@@ -648,11 +650,17 @@ header_bar(sl, "E(i)(d) — Stratified CIF",
            "High-FICO → elevated prepayment, near-zero default;  high-LTV → inverted")
 add_img(sl, img("E1_stratified_cif.png"), 0.3, 1.15, 12.7)
 
-# ── Slide 9: Cause-Specific Cox ───────────────────────────────────────────────
+# ── Slide 9a: Cause-Specific Cox — Prepayment ────────────────────────────────
 sl = add_slide()
-header_bar(sl, "E(i)(e) — Cause-Specific Cox Regression  (12 features)",
-           "Opposite-sign coefficients reveal misrepresentation in naive combined Cox")
-add_img(sl, img("E1_cause_specific_cox.png"), 0.3, 1.15, 12.7)
+header_bar(sl, "E(i)(e) — Cause-Specific Cox: Prepayment  (sorted ascending)",
+           "Rate incentive & Purchase purpose → highest refi hazard  ·  12 features  ·  95% CI")
+add_img(sl, img("E1_cox_prepay.png"), 0.3, 1.15, 12.7)
+
+# ── Slide 9b: Cause-Specific Cox — Default ───────────────────────────────────
+sl = add_slide()
+header_bar(sl, "E(i)(e) — Cause-Specific Cox: Default  (sorted ascending)",
+           "LTV & DTI → highest default hazard  ·  CreditScore opposite sign to prepayment")
+add_img(sl, img("E1_cox_default.png"), 0.3, 1.15, 12.7)
 
 # ── Slide 10: Fine-Gray ───────────────────────────────────────────────────────
 sl = add_slide()
