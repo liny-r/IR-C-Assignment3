@@ -28,16 +28,20 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
 W, H = letter
 styles = getSampleStyleSheet()
 
-BLUE   = HexColor("#2c3e50")
-ACCENT = HexColor("#2980b9")
-RED    = HexColor("#c0392b")
-LGREY  = HexColor("#ecf0f1")
+# Madrid theme colors
+BLUE   = HexColor("#1F3963")   # deep navy
+ACCENT = HexColor("#C00000")   # crimson red
+GOLD   = HexColor("#FFC000")   # gold
+TEAL   = HexColor("#00567A")   # teal
+RED    = HexColor("#C00000")
+LGREY  = HexColor("#F2F2F2")
+MGREY  = HexColor("#595959")
 
 title_style = ParagraphStyle("Title2", parent=styles["Title"],
     fontSize=22, textColor=BLUE, spaceAfter=6, alignment=TA_CENTER)
 h1_style = ParagraphStyle("H1", parent=styles["Heading1"],
-    fontSize=14, textColor=white, spaceAfter=4,
-    backColor=BLUE, borderPad=4, leading=18)
+    fontSize=14, textColor=white, spaceAfter=0,
+    backColor=BLUE, borderPad=5, leading=18)
 h2_style = ParagraphStyle("H2", parent=styles["Heading2"],
     fontSize=12, textColor=BLUE, spaceAfter=4, spaceBefore=8)
 body_style = ParagraphStyle("Body2", parent=styles["Normal"],
@@ -45,12 +49,19 @@ body_style = ParagraphStyle("Body2", parent=styles["Normal"],
 bullet_style = ParagraphStyle("Bullet", parent=body_style,
     leftIndent=14, bulletIndent=4, spaceAfter=2)
 caption_style = ParagraphStyle("Caption", parent=styles["Normal"],
-    fontSize=8, textColor=HexColor("#7f8c8d"),
+    fontSize=8, textColor=HexColor("#595959"),
     alignment=TA_CENTER, spaceAfter=8)
 small_style = ParagraphStyle("Small", parent=body_style, fontSize=8.5)
+formula_style = ParagraphStyle("Formula", parent=styles["Normal"],
+    fontSize=10, leading=16, fontName="Courier",
+    backColor=HexColor("#EEF2F7"), leftIndent=20, rightIndent=20,
+    borderPad=6, spaceAfter=6, spaceBefore=4)
 
 def h1(text):
-    return Paragraph(f"<font color='white'>&nbsp;&nbsp;{text}</font>", h1_style)
+    return [
+        Paragraph(f"<font color='white'>&nbsp;&nbsp;{text}</font>", h1_style),
+        HRFlowable(width="100%", thickness=3, color=GOLD, spaceAfter=6),
+    ]
 
 def h2(text):
     return Paragraph(text, h2_style)
@@ -69,6 +80,9 @@ def sp(n=6):
 
 def hr():
     return HRFlowable(width="100%", thickness=0.5, color=LGREY, spaceAfter=4)
+
+def formula(text):
+    return Paragraph(text, formula_style)
 
 def add_image(path, max_w=6.5*inch, max_h=3.5*inch):
     if not path:
@@ -111,7 +125,7 @@ story += [
 ]
 
 # ── E(i): Competing Risks ─────────────────────────────────────────────────────
-story += [h1("E(i) — Competing Risks Framework"), sp(4)]
+story += h1("E(i) — Competing Risks Framework"); story += [sp(4)]
 
 story += [h2("(a) Exploratory Data Analysis  —  Full 34M-Loan Dataset"), sp(2)]
 story += [
@@ -146,28 +160,57 @@ story += [
 
 story += [h2("(b) Aalen-Johansen Cumulative Incidence Functions"), sp(2)]
 story += [
-    p("The Aalen-Johansen estimator correctly handles competing risks. Treating default as "
-      "a competing event for prepayment prevents the upward bias that arises from "
-      "Kaplan-Meier's independence assumption."),
+    p("<b>Kaplan-Meier</b> (incorrect under competing risks):"),
+    formula("S_KM(t) = prod_{t_i <= t} (1 - d_i^(k) / n_i)     F_KM^(k)(t) = 1 - S_KM(t)"),
+    p("where d_i^(k) counts only cause-k events; competing exits treated as censored."),
     sp(4),
-    add_image(img("E1_competing_risks_cif.png"), max_h=3.2*inch),
-    caption("Fig 4. AJ cumulative incidence functions. "
-            "The 10-year prepayment CIF ≈ 45%; default CIF ≈ 2%."),
+    p("<b>Aalen-Johansen</b> (correct):"),
+    formula("F_k(t) = SUM_{t_j <= t}  S(t_j-)  *  d_{kj} / n_j"),
+    Table([
+        [Paragraph("<b>Symbol</b>", small_style), Paragraph("<b>Meaning</b>", small_style)],
+        [Paragraph("F_k(t)", small_style), Paragraph("CIF for cause k at loan age t", small_style)],
+        [Paragraph("d_{kj}", small_style), Paragraph("cause-k exits at time t_j", small_style)],
+        [Paragraph("n_j", small_style),    Paragraph("loans at risk just before t_j", small_style)],
+        [Paragraph("S(t_j-)", small_style),Paragraph("overall survival before t_j — uses ALL exits", small_style)],
+    ], colWidths=[1.3*inch, 5.0*inch],
+       style=TableStyle([
+           ("BACKGROUND", (0,0), (-1,0), BLUE), ("TEXTCOLOR", (0,0), (-1,0), white),
+           ("ROWBACKGROUNDS", (0,1), (-1,-1), [white, LGREY]),
+           ("GRID", (0,0), (-1,-1), 0.5, HexColor("#bdc3c7")),
+           ("FONTSIZE", (0,0), (-1,-1), 8.5),
+           ("TOPPADDING", (0,0), (-1,-1), 3), ("BOTTOMPADDING", (0,0), (-1,-1), 3),
+       ])),
+    sp(4),
+    p("<b>Partition identity</b> (impossible under KM):"),
+    formula("SUM_k  F_k(t)  +  S(t)  =  1   for all t"),
+    sp(4),
+    add_image(img("E1_competing_risks_cif.png"), max_h=3.0*inch),
+    caption("Fig 6. AJ cumulative incidence functions. "
+            "10-yr prepayment CIF ≈ 83%;  default CIF ≈ 2.2%;  still active ≈ 14.5%."),
     PageBreak(),
 ]
 
 story += [h2("(c) KM vs AJ — Bias from Ignoring Competing Events"), sp(2)]
 story += [
-    p("Kaplan-Meier treats default exits as independent censorings — a false assumption "
-      "since defaulted loans are systematically less likely to prepay. "
-      "The overestimation grows monotonically with horizon:"),
+    p("KM treats defaulted loans as <b>independent censored</b> observations. "
+      "In practice they are the riskiest loans — least likely to prepay. "
+      "Removing them inflates the estimated prepayment hazard at every subsequent time point."),
+    sp(4),
+    p("<b>KM increment</b> at event time t_j (defaults excluded from denominator):"),
+    formula("ΔF_KM(t_j)  =  S_KM(t_j-)  *  d_{1j} / n_j^KM        [n_j^KM < n_j  →  over-estimates]"),
     sp(2),
-    b("5-year horizon:   KM over-estimates prepayment CIF by ~+0.45 pp"),
-    b("10-year horizon:  bias ≈ +1.31 pp"),
-    b("20-year horizon:  bias ≈ +2.23 pp"),
+    p("<b>AJ increment</b> at the same time (overall survival used):"),
+    formula("ΔF_AJ(t_j)  =  S(t_j-)     *  d_{1j} / n_j            [S(t_j-) <= S_KM(t_j-)  always]"),
+    sp(2),
+    p("Because S(t_j-) ≤ S_KM(t_j-) at every step, every AJ increment is ≤ the KM increment, "
+      "so the bias compounds over time:"),
+    sp(2),
+    b("5-year horizon:  KM over-estimates prepayment CIF by ~+0.45 pp"),
+    b("10-year horizon: bias ≈ +1.31 pp"),
+    b("20-year horizon: bias ≈ +2.23 pp"),
     sp(4),
     add_image(img("E1_km_vs_aj_bias.png"), max_h=2.8*inch),
-    caption("Fig 5. KM vs AJ prepayment CIF and the growing bias."),
+    caption("Fig 7. KM vs AJ prepayment CIF — growing bias as competing exits accumulate."),
     PageBreak(),
 ]
 
@@ -240,7 +283,7 @@ story += [
 ]
 
 # ── E(ii): Time-Varying ───────────────────────────────────────────────────────
-story += [h1("E(ii) — Time-Dependent Covariates"), sp(4)]
+story += h1("E(ii) — Time-Dependent Covariates"); story += [sp(4)]
 story += [
     p("Standard Cox models fix covariates at origination. The <b>Andersen-Gill "
       "counting-process</b> extension allows each loan to contribute one row per "
@@ -294,7 +337,7 @@ for fname in ["Eii_tv_cox_forest.png", "Eii_static_vs_tv.png"]:
 story.append(PageBreak())
 
 # ── E(iv): Scenario Analysis ──────────────────────────────────────────────────
-story += [h1("E(iv) — Scenario Analysis: Interest Rate Shocks"), sp(4)]
+story += h1("E(iv) — Scenario Analysis: Interest Rate Shocks"); story += [sp(4)]
 story += [
     p("Both Deep Cox and XGBoost are shocked with ±100 bp and ±200 bp changes to "
       "<i>mortgage_rate</i>. Rate incentive is updated consistently: "
@@ -319,7 +362,7 @@ story += [
 ]
 
 # ── Summary table ─────────────────────────────────────────────────────────────
-story += [h1("Summary of Part E Extensions"), sp(6)]
+story += h1("Summary of Part E Extensions"); story += [sp(6)]
 tbl_data = [
     [Paragraph("<b>Section</b>", small_style),
      Paragraph("<b>Method</b>", small_style),
@@ -381,11 +424,15 @@ prs = Presentation()
 prs.slide_width  = Inches(13.33)
 prs.slide_height = Inches(7.5)
 
-DARK  = RGBColor(0x2c, 0x3e, 0x50)
-LIGHT = RGBColor(0x29, 0x80, 0xb9)
-LGRY  = RGBColor(0xec, 0xf0, 0xf1)
+# Madrid theme
+DARK  = RGBColor(0x1F, 0x39, 0x63)   # deep navy
+LIGHT = RGBColor(0xC0, 0x00, 0x00)   # crimson red
+GOLD_C= RGBColor(0xFF, 0xC0, 0x00)   # gold accent stripe
+TEAL_C= RGBColor(0x00, 0x56, 0x7A)   # teal for secondary
+LGRY  = RGBColor(0xF2, 0xF2, 0xF2)
+MGRY  = RGBColor(0x59, 0x59, 0x59)
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
-RED_C = RGBColor(0xc0, 0x39, 0x2b)
+RED_C = RGBColor(0xC0, 0x00, 0x00)
 
 blank_layout = prs.slide_layouts[6]  # completely blank
 
@@ -439,10 +486,28 @@ def add_img(slide, path, l, t, w, h=None):
         print(f"  img error {path}: {e}")
 
 def header_bar(slide, title, subtitle=""):
-    rect(slide, 0, 0, 13.33, 1.1, DARK)
-    txbox(slide, title, 0.3, 0.08, 11, 0.55, size=26, bold=True, color=WHITE)
+    rect(slide, 0, 0, 13.33, 1.05, DARK)          # navy header
+    rect(slide, 0, 1.05, 13.33, 0.07, GOLD_C)     # gold accent stripe
+    txbox(slide, title, 0.3, 0.06, 12.5, 0.55, size=26, bold=True, color=WHITE)
     if subtitle:
-        txbox(slide, subtitle, 0.3, 0.62, 11, 0.4, size=14, color=LGRY)
+        txbox(slide, subtitle, 0.3, 0.60, 12.5, 0.4, size=13, color=LGRY)
+
+def formula_box(slide, lines, l, t, w, h, size=13):
+    """Monospaced formula text box with light-blue tinted background."""
+    bg = RGBColor(0xEE, 0xF2, 0xF7)
+    rect(slide, l, t, w, h, fill_rgb=bg)
+    tb = slide.shapes.add_textbox(Inches(l+0.1), Inches(t+0.08),
+                                   Inches(w-0.2), Inches(h-0.1))
+    tb.word_wrap = True
+    tf = tb.text_frame; tf.word_wrap = True
+    first = True
+    for line in lines:
+        para = tf.paragraphs[0] if first else tf.add_paragraph()
+        first = False
+        run = para.add_run(); run.text = line
+        run.font.size = Pt(size)
+        run.font.name = "Courier New"
+        run.font.color.rgb = DARK
 
 def bullet_box(slide, items, l, t, w, h, size=14):
     tb = slide.shapes.add_textbox(Inches(l), Inches(t), Inches(w), Inches(h))
@@ -459,18 +524,20 @@ def bullet_box(slide, items, l, t, w, h, size=14):
         para.font.size = Pt(size)
         para.space_after = Pt(4)
 
-# ── Slide 1: Title ────────────────────────────────────────────────────────────
+# ── Slide 1: Title  (Madrid theme) ───────────────────────────────────────────
 sl = add_slide()
-rect(sl, 0, 0, 13.33, 7.5, DARK)
-rect(sl, 0, 2.6, 13.33, 2.3, LIGHT)
-txbox(sl, "MTH9877 — Interest Rates & Credit", 1, 1.0, 11.33, 0.7,
+rect(sl, 0, 0, 13.33, 7.5, DARK)           # navy background
+rect(sl, 0, 2.5, 13.33, 0.1, GOLD_C)       # gold horizontal divider
+rect(sl, 0, 2.6, 13.33, 2.5, LIGHT)        # crimson band
+rect(sl, 0, 5.1, 13.33, 0.1, GOLD_C)       # gold horizontal divider
+txbox(sl, "MTH9877 — Interest Rates & Credit", 1, 0.9, 11.33, 0.7,
       size=18, color=LGRY, align=PP_ALIGN.CENTER)
-txbox(sl, "Assignment 3 — Part E Extensions", 1, 1.7, 11.33, 0.8,
-      size=28, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
+txbox(sl, "Assignment 3 — Part E Extensions", 1, 1.6, 11.33, 0.85,
+      size=30, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
 txbox(sl, "Mortgage Prepayment & Default  |  Survival Analysis Extensions",
-      1, 2.75, 11.33, 0.6, size=20, color=WHITE, align=PP_ALIGN.CENTER)
+      1, 2.72, 11.33, 0.65, size=20, color=WHITE, align=PP_ALIGN.CENTER)
 txbox(sl, "Rose Lin  ·  Baruch MFE  ·  May 2026",
-      1, 6.6, 11.33, 0.5, size=13, color=LGRY, align=PP_ALIGN.CENTER)
+      1, 6.55, 11.33, 0.5, size=13, color=LGRY, align=PP_ALIGN.CENTER)
 
 # ── Slide 2: Outline ──────────────────────────────────────────────────────────
 sl = add_slide()
@@ -508,19 +575,72 @@ header_bar(sl, "E(i)(a) — Stratified Hazard Intensity by FICO · LTV · Rate �
            "High-FICO refinances fastest · High-LTV defaults persist longer · GFC vintages spike")
 add_img(sl, img("E1_hazard_stratified.png"), 0.5, 1.1, 12.3)
 
-# ── Slide 6: AJ CIF ──────────────────────────────────────────────────────────
+# ── Slide 6: AJ CIF — formula slide ──────────────────────────────────────────
 sl = add_slide()
-header_bar(sl, "E(i)(b) — Aalen-Johansen CIF",
-           "Correct competing-risks treatment; 10-yr prepay ≈ 45%,  default ≈ 2%")
-add_img(sl, img("E1_competing_risks_cif.png"), 1.5, 1.2, 10.0)
+header_bar(sl, "E(i)(b) — Aalen-Johansen CIF: Formula & Contrast",
+           "AJ correctly weights each increment by the overall survival probability")
+rect(sl, 0, 1.12, 13.33, 6.38, LGRY)
 
-# ── Slide 7: KM vs AJ Bias ───────────────────────────────────────────────────
+# KM box
+txbox(sl, "Kaplan-Meier  (INCORRECT — treats competing exits as censored)", 0.3, 1.25, 12.7, 0.4,
+      size=13, bold=True, color=LIGHT)
+formula_box(sl,
+    ["S_KM(t) = PROD_{t_i <= t} (1 - d_i^(k) / n_i)",
+     "F_KM^(k)(t) = 1 - S_KM(t)    ← overcounts cause-k hazard"],
+    0.3, 1.65, 12.7, 0.9, size=13)
+
+# AJ box
+txbox(sl, "Aalen-Johansen  (CORRECT)", 0.3, 2.65, 12.7, 0.4,
+      size=13, bold=True, color=DARK)
+formula_box(sl,
+    ["F_k(t) = SUM_{t_j <= t}  S(t_j-)  *  d_{kj} / n_j",
+     "",
+     "  F_k(t) : CIF for cause k at loan age t",
+     "  d_{kj} : cause-k exits at time t_j",
+     "  n_j    : loans at risk just before t_j",
+     "  S(t_j-): overall survival before t_j — uses ALL exits"],
+    0.3, 3.05, 12.7, 1.55, size=13)
+
+# Partition identity
+txbox(sl, "Partition identity  (impossible under KM):", 0.3, 4.68, 12.7, 0.35,
+      size=12, bold=True, color=DARK)
+formula_box(sl, ["SUM_k  F_k(t)  +  S(t)  =  1    for all t"],
+            0.3, 5.05, 12.7, 0.5, size=13)
+
+# Chart
+add_img(sl, img("E1_competing_risks_cif.png"), 0.3, 5.6, 12.7)
+
+# ── Slide 6b: AJ CIF chart full ───────────────────────────────────────────────
 sl = add_slide()
-header_bar(sl, "E(i)(c) — KM vs AJ: Bias from Ignoring Competing Events",
-           "KM over-estimates prepayment CIF by treating defaults as independent censorings")
-add_img(sl, img("E1_km_vs_aj_bias.png"), 0.5, 1.2, 12.3)
-bullet_box(sl, ["5 yr: +0.45 pp", "10 yr: +1.31 pp", "20 yr: +2.23 pp"],
-           9.5, 5.2, 3.5, 1.5, size=13)
+header_bar(sl, "E(i)(b) — AJ CIF: 10-yr Prepay 83%  ·  Default 2.2%  ·  Active 14.5%",
+           "S_KM over-estimates each cause; AJ partition sums exactly to 1")
+add_img(sl, img("E1_competing_risks_cif.png"), 0.5, 1.2, 12.3)
+
+# ── Slide 7: KM vs AJ — formula slide ────────────────────────────────────────
+sl = add_slide()
+header_bar(sl, "E(i)(c) — KM vs AJ: Why Defaults Cannot Be Treated as Censorings",
+           "Every AJ increment ≤ KM increment  →  F_AJ(t) ≤ F_KM(t)  →  growing bias")
+rect(sl, 0, 1.12, 13.33, 6.38, LGRY)
+
+txbox(sl, "KM increment at t_j  (defaults excluded from denominator n_j^KM < n_j):",
+      0.3, 1.25, 12.7, 0.4, size=12, bold=True, color=LIGHT)
+formula_box(sl,
+    ["ΔF_KM(t_j)  =  S_KM(t_j-)  *  d_{1j} / n_j^KM    ← n_j^KM underestimates risk set"],
+    0.3, 1.65, 12.7, 0.6, size=13)
+
+txbox(sl, "AJ increment at t_j  (overall survival, full risk set):",
+      0.3, 2.35, 12.7, 0.4, size=12, bold=True, color=DARK)
+formula_box(sl,
+    ["ΔF_AJ(t_j)   =  S(t_j-)     *  d_{1j} / n_j      ← S(t_j-) ≤ S_KM(t_j-) always"],
+    0.3, 2.75, 12.7, 0.6, size=13)
+
+txbox(sl, "Consequence — bias compounds over time:", 0.3, 3.45, 12.7, 0.4,
+      size=12, bold=True, color=DARK)
+bullet_box(sl, ["5 yr:  KM over-estimates prepayment CIF by ~+0.45 pp",
+                "10 yr: bias ≈ +1.31 pp",
+                "20 yr: bias ≈ +2.23 pp  (gap widens as defaulted loans accumulate)"],
+           0.3, 3.85, 12.7, 1.1, size=13)
+add_img(sl, img("E1_km_vs_aj_bias.png"), 0.3, 5.0, 12.7)
 
 # ── Slide 8: Stratified CIF ──────────────────────────────────────────────────
 sl = add_slide()
