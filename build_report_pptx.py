@@ -117,32 +117,30 @@ story += [h2("(a) Exploratory Data Analysis  —  Full 34M-Loan Dataset"), sp(2)
 story += [
     p("The Freddie Mac dataset contains 34 million 30-year fixed-rate mortgages originated "
       "1999–2023. Loans exit by prepayment (~57%), remain active / censored (~41%), or "
-      "default (~2%). Five charts below tell the key economic story."),
-    sp(4),
-    add_image(img("E1_eda_profile.png"), max_h=2.8*inch),
-    caption("Fig 1. Dumbbell chart: defaulted borrowers are riskier on every dimension at origination. "
-            "FICO 44 pts lower, LTV 8.6 pp higher, DTI 4.6 pp higher — the riskiest quintile is "
-            "concentrated in defaults."),
+      "default (~2%)."),
     sp(4),
     add_image(img("E1_eda_duration.png"), max_h=2.8*inch),
-    caption("Fig 2. Smoothed duration densities. Prepaid loans exit at a median ~40 months "
-            "(rate-option exercise); defaults cluster 30–80 months (gradual financial stress). "
-            "The mechanisms and timescales are fundamentally different."),
-    sp(4),
-    two_col_images(img("E1_eda_ltv_trap.png"), img("E1_eda_rate_lockin.png")),
-    caption("Fig 3 (left). LTV equity trap: 37% of defaults vs 23% of prepayments are above "
-            "the 80% LTV conventional refi threshold — high LTV removes the escape valve. "
-            "Fig 4 (right). Rate lock-in: active loans originated at ~4.4% cannot refinance "
-            "into 7%+ market rates — this is the dominant driver of suppressed prepayment post-2022."),
-    sp(4),
-    add_image(img("E1_eda_vintage.png"), max_h=2.8*inch),
-    caption("Fig 5. Vintage cohort analysis. 2007 cohort shows 6× the long-run average default rate "
-            "(GFC credit crisis); post-2013 cohorts near-zero (tighter underwriting). "
-            "Post-2020 cohorts are rate-locked with large censored share."),
+    caption("Fig 1. Duration distributions by event type. "
+            "Prepaid loans exit at a median ~40 months; defaults cluster 30–80 months."),
     sp(4),
     two_col_images(img("E1_eda_covariates.png"), img("E1_eda_categorical.png")),
-    caption("Fig 6. Covariate box plots (5th/95th pctile) and event breakdown "
-            "by loan purpose and occupancy status. Investment properties show elevated default rates."),
+    caption("Fig 2. Covariate profiles (whiskers = 5th/95th pctile) and event breakdown "
+            "by loan purpose and occupancy status."),
+    sp(4),
+    add_image(img("E1_eda_vintage.png"), max_h=2.6*inch),
+    caption("Fig 3. Vintage cohort analysis. 2006–2008 vintages show peak default rates "
+            "of 8–12%; post-2012 cohorts exhibit near-zero default with high prepayment."),
+    sp(4),
+    add_image(img("E1_hazard_overall.png"), max_h=2.8*inch),
+    caption("Fig 4. Cause-specific hazard intensity h(t). Prepayment hazard peaks early "
+            "(months 10–30) then decays — the burnout effect. Default hazard rises slowly "
+            "and plateaus, reflecting gradual financial deterioration."),
+    sp(4),
+    add_image(img("E1_hazard_stratified.png"), max_h=4.5*inch),
+    caption("Fig 5. Stratified hazard intensity by FICO, LTV, origination rate, and vintage era. "
+            "High-FICO loans peak earlier (faster refinancing); high-LTV loans show elevated "
+            "default hazard throughout; GFC vintages (1999–2007) show a default hazard spike "
+            "absent in post-GFC cohorts."),
     PageBreak(),
 ]
 
@@ -486,36 +484,29 @@ items = [
 ]
 bullet_box(sl, items, 0.5, 1.3, 12.3, 5.5, size=17)
 
-# ── Slide 3: EDA — risk profile dumbbell ─────────────────────────────────────
+# ── Slide 3: EDA — duration & covariates ─────────────────────────────────────
 sl = add_slide()
-header_bar(sl, "E(i)(a) — EDA: Defaulted Borrowers Are Riskier on Every Dimension",
-           "FICO 44 pts lower · LTV 8.6 pp higher · DTI 4.6 pp higher · Rate 0.85 pp higher")
-add_img(sl, img("E1_eda_profile.png"), 0.5, 1.2, 12.3)
+header_bar(sl, "E(i)(a) — EDA: Duration Distributions & Covariate Profiles",
+           "Prepaid: median ~40 mo  |  Defaulted: median ~55 mo  |  full 34M-loan dataset")
+add_img(sl, img("E1_eda_duration.png"), 0.15, 1.15, 13.0)
 
-# ── Slide 4: EDA — duration mechanisms ───────────────────────────────────────
+# ── Slide 4: EDA — vintage & categorical ─────────────────────────────────────
 sl = add_slide()
-header_bar(sl, "E(i)(a) — EDA: Different Timescales, Different Mechanisms",
-           "Prepayment = rate-option exercise (~40 mo median)  |  Default = financial stress (30–80 mo)")
-add_img(sl, img("E1_eda_duration.png"), 0.15, 1.2, 13.0)
+header_bar(sl, "E(i)(a) — EDA: Vintage Cohort & Categorical Breakdown")
+add_img(sl, img("E1_eda_vintage.png"), 0.15, 1.15, 8.0)
+add_img(sl, img("E1_eda_categorical.png"), 8.3, 1.15, 4.8)
 
-# ── Slide 5: EDA — LTV trap & rate lock-in ───────────────────────────────────
+# ── Slide 5: EDA — overall hazard intensity ──────────────────────────────────
 sl = add_slide()
-header_bar(sl, "E(i)(a) — EDA: The Equity Trap & Rate Lock-In Effect",
-           "High LTV removes refi escape · Active loans at 4.4% cannot refinance into 7%+ market")
-add_img(sl, img("E1_eda_ltv_trap.png"), 0.15, 1.2, 6.5)
-add_img(sl, img("E1_eda_rate_lockin.png"), 6.8, 1.2, 6.3)
+header_bar(sl, "E(i)(a) — Hazard Intensity: Prepayment Peaks Early, Default Rises Slowly",
+           "Cause-specific Nelson-Aalen smooth · burnout visible in prepayment hazard · 100K sample")
+add_img(sl, img("E1_hazard_overall.png"), 0.5, 1.2, 12.3)
 
-# ── Slide 6: EDA — vintage cohorts ───────────────────────────────────────────
+# ── Slide 6: EDA — stratified hazard ─────────────────────────────────────────
 sl = add_slide()
-header_bar(sl, "E(i)(a) — EDA: GFC Vintages Carry Concentrated Default Risk",
-           "2007 cohort = 6× long-run avg default rate · Post-2013 near-zero · Post-2020 rate-locked")
-add_img(sl, img("E1_eda_vintage.png"), 0.15, 1.2, 13.0)
-
-# ── Slide 7: EDA — covariates & categorical ──────────────────────────────────
-sl = add_slide()
-header_bar(sl, "E(i)(a) — EDA: Covariate Profiles & Loan Categories")
-add_img(sl, img("E1_eda_covariates.png"), 0.15, 1.15, 7.8)
-add_img(sl, img("E1_eda_categorical.png"), 8.1, 1.15, 5.0)
+header_bar(sl, "E(i)(a) — Stratified Hazard Intensity by FICO · LTV · Rate · Vintage",
+           "High-FICO refinances fastest · High-LTV defaults persist longer · GFC vintages spike")
+add_img(sl, img("E1_hazard_stratified.png"), 0.5, 1.1, 12.3)
 
 # ── Slide 6: AJ CIF ──────────────────────────────────────────────────────────
 sl = add_slide()
