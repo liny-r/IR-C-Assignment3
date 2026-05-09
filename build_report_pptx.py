@@ -281,6 +281,11 @@ story += [
     p("For prepayment, <b>rate_incentive</b> has a larger coefficient under Fine-Gray "
       "than cause-specific Cox: loans with high rate incentive are also less likely to "
       "default first, amplifying the competing-risk-adjusted CIF effect."),
+    sp(4),
+    add_image(img("E1_fg_comparison.png"), max_h=3.4*inch),
+    caption("Fig 10. Cause-specific Cox vs Fine-Gray log-HRs for prepayment. "
+            "Lines connect the same covariate across models; divergence signals "
+            "that the competing-risk structure materially changes the estimated effect."),
     PageBreak(),
 ]
 
@@ -665,19 +670,16 @@ add_img(sl, img("E1_cox_default.png"), 0.3, 1.15, 12.7)
 # ── Slide 10: Fine-Gray ───────────────────────────────────────────────────────
 sl = add_slide()
 header_bar(sl, "E(i)(f) — Fine-Gray Subdistribution Hazard",
-           "IPCW-weighted Cox approximation; coefficients directly target the CIF")
-rect(sl, 0, 1.1, 13.33, 6.4, LGRY)
+           "IPCW-weighted Cox · coefficients directly target the CIF")
+add_img(sl, img("E1_fg_comparison.png"), 0.3, 1.15, 7.5)
 items = [
-    "Subjects who experienced a competing event (default) are KEPT in the risk set with IPCW weights",
-    "The subdistribution hazard integrates to the CIF — covariate effects are CIF effects",
-    "rate_incentive HR is LARGER under Fine-Gray than cause-specific Cox:",
-    "   high-incentive loans are also less likely to default first → amplifies CIF effect",
-    "Low-FICO Fine-Gray HR for prepayment is ATTENUATED: elevated default risk reduces",
-    "   measured prepayment propensity once competing risks are accounted for",
+    "Defaulted loans KEPT in prepayment risk set (IPCW-weighted)",
+    "rate_incentive: LARGER under Fine-Gray — high-incentive loans also less likely to default first",
+    "FICO: ATTENUATED under Fine-Gray — elevated default risk for low-FICO reduces measured prepayment propensity",
     "Use Fine-Gray for CIF prediction / loss forecasting",
     "Use cause-specific Cox for economic mechanism estimation",
 ]
-bullet_box(sl, items, 0.5, 1.3, 12.3, 5.5, size=14)
+bullet_box(sl, items, 8.0, 1.3, 5.1, 5.5, size=13)
 
 # ── Slide 11: E(ii) TV Cox ────────────────────────────────────────────────────
 sl = add_slide()
