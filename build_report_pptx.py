@@ -137,6 +137,11 @@ story += [
     caption("Fig 1. Duration distributions by event type. "
             "Prepaid loans exit at a median ~40 months; defaults cluster 30–80 months."),
     sp(4),
+    add_image(img("E1_eda_duration_overlay.png"), max_h=2.5*inch),
+    caption("Fig 2. Superimposed density curves (normalised within each event type). "
+            "Prepayment peaks sharply near month 15; defaults have a flatter, right-shifted "
+            "distribution peaking near month 60; censored loans are concentrated in the early period."),
+    sp(4),
     two_col_images(img("E1_eda_covariates.png"), img("E1_eda_categorical.png")),
     caption("Fig 2. Covariate profiles (whiskers = 5th/95th pctile) and event breakdown "
             "by loan purpose and occupancy status."),
@@ -558,6 +563,12 @@ sl = add_slide()
 header_bar(sl, "E(i)(a) — EDA: Duration Distributions & Covariate Profiles",
            "Prepaid: median ~40 mo  |  Defaulted: median ~55 mo  |  full 34M-loan dataset")
 add_img(sl, img("E1_eda_duration.png"), 0.15, 1.15, 13.0)
+
+# ── Slide 3b: EDA — superimposed duration overlay ────────────────────────────
+sl = add_slide()
+header_bar(sl, "E(i)(a) — EDA: Superimposed Duration Densities",
+           "Normalised within each event type · dashed lines = median · full 34M-loan dataset")
+add_img(sl, img("E1_eda_duration_overlay.png"), 0.5, 1.2, 12.3)
 
 # ── Slide 4: EDA — vintage & categorical ─────────────────────────────────────
 sl = add_slide()
