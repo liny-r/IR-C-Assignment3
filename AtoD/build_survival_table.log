@@ -1,0 +1,206 @@
+[18:29:19] INFO ============================================================
+[18:29:19] INFO BUILD SURVIVAL TABLE
+[18:29:19] INFO ============================================================
+[18:29:19] INFO   Vintages: 1999-2022 (24 years)
+[18:29:19] INFO   Origination dir:  ../Origination_Historical_Data
+[18:29:19] INFO   Performance dir:  ../Monthly_Performance_historical_data_time
+[18:29:19] INFO   Output:           C:\Users\Dani\Documents\egyetem\Baruch\MTH 9877 Interest Rate and Credit Models\assignment3\claude2\survival_table.parquet
+[18:29:19] INFO STARTING: Loading origination data
+[18:29:19] INFO ============================================================
+[18:29:19] INFO STEP 1: Loading origination data
+[18:29:19] INFO ============================================================
+[18:29:19] INFO STARTING:   Loading vintage 1999
+[18:29:19] INFO     776,146 loans (30yr FRM)
+[18:29:19] INFO DONE:   Loading vintage 1999  (0.2s, mem 310MB diff+208MB)
+[18:29:19] INFO STARTING:   Loading vintage 2000
+[18:29:19] INFO     582,922 loans (30yr FRM)
+[18:29:19] INFO DONE:   Loading vintage 2000  (0.0s, mem 443MB diff+133MB)
+[18:29:19] INFO STARTING:   Loading vintage 2001
+[18:29:19] INFO     1,509,070 loans (30yr FRM)
+[18:29:19] INFO DONE:   Loading vintage 2001  (0.1s, mem 784MB diff+341MB)
+[18:29:19] INFO STARTING:   Loading vintage 2002
+[18:29:19] INFO     1,528,608 loans (30yr FRM)
+[18:29:19] INFO DONE:   Loading vintage 2002  (0.1s, mem 1130MB diff+350MB)
+[18:29:19] INFO STARTING:   Loading vintage 2003
+[18:29:20] INFO     1,799,877 loans (30yr FRM)
+[18:29:20] INFO DONE:   Loading vintage 2003  (0.1s, mem 1537MB diff+410MB)
+[18:29:20] INFO STARTING:   Loading vintage 2004
+[18:29:20] INFO     1,047,361 loans (30yr FRM)
+[18:29:20] INFO DONE:   Loading vintage 2004  (0.1s, mem 1757MB diff+223MB)
+[18:29:20] INFO STARTING:   Loading vintage 2005
+[18:29:20] INFO     1,231,894 loans (30yr FRM)
+[18:29:20] INFO DONE:   Loading vintage 2005  (0.1s, mem 2018MB diff+263MB)
+[18:29:20] INFO STARTING:   Loading vintage 2006
+[18:29:20] INFO     1,007,663 loans (30yr FRM)
+[18:29:20] INFO DONE:   Loading vintage 2006  (0.0s, mem 2239MB diff+221MB)
+[18:29:20] INFO STARTING:   Loading vintage 2007
+[18:29:20] INFO     1,069,929 loans (30yr FRM)
+[18:29:20] INFO DONE:   Loading vintage 2007  (0.1s, mem 2468MB diff+229MB)
+[18:29:20] INFO STARTING:   Loading vintage 2008
+[18:29:20] INFO     1,022,146 loans (30yr FRM)
+[18:29:20] INFO DONE:   Loading vintage 2008  (0.0s, mem 2689MB diff+221MB)
+[18:29:20] INFO STARTING:   Loading vintage 2009
+[18:29:20] INFO     1,712,593 loans (30yr FRM)
+[18:29:20] INFO DONE:   Loading vintage 2009  (0.1s, mem 3061MB diff+372MB)
+[18:29:20] INFO STARTING:   Loading vintage 2010
+[18:29:20] INFO     1,145,230 loans (30yr FRM)
+[18:29:20] INFO DONE:   Loading vintage 2010  (0.1s, mem 3311MB diff+250MB)
+[18:29:20] INFO STARTING:   Loading vintage 2011
+[18:29:20] INFO     794,398 loans (30yr FRM)
+[18:29:20] INFO DONE:   Loading vintage 2011  (0.0s, mem 3483MB diff+176MB)
+[18:29:20] INFO STARTING:   Loading vintage 2012
+[18:29:20] INFO     1,222,981 loans (30yr FRM)
+[18:29:20] INFO DONE:   Loading vintage 2012  (0.1s, mem 3752MB diff+270MB)
+[18:29:20] INFO STARTING:   Loading vintage 2013
+[18:29:20] INFO     1,181,000 loans (30yr FRM)
+[18:29:20] INFO DONE:   Loading vintage 2013  (0.1s, mem 4007MB diff+259MB)
+[18:29:20] INFO STARTING:   Loading vintage 2014
+[18:29:20] INFO     848,732 loans (30yr FRM)
+[18:29:20] INFO DONE:   Loading vintage 2014  (0.0s, mem 4189MB diff+182MB)
+[18:29:20] INFO STARTING:   Loading vintage 2015
+[18:29:20] INFO     1,076,094 loans (30yr FRM)
+[18:29:20] INFO DONE:   Loading vintage 2015  (0.1s, mem 4421MB diff+232MB)
+[18:29:20] INFO STARTING:   Loading vintage 2016
+[18:29:20] INFO     1,253,126 loans (30yr FRM)
+[18:29:20] INFO DONE:   Loading vintage 2016  (0.1s, mem 4689MB diff+270MB)
+[18:29:20] INFO STARTING:   Loading vintage 2017
+[18:29:20] INFO     1,090,088 loans (30yr FRM)
+[18:29:20] INFO DONE:   Loading vintage 2017  (0.1s, mem 4923MB diff+234MB)
+[18:29:20] INFO STARTING:   Loading vintage 2018
+[18:29:20] INFO     1,089,570 loans (30yr FRM)
+[18:29:20] INFO DONE:   Loading vintage 2018  (0.1s, mem 5158MB diff+235MB)
+[18:29:20] INFO STARTING:   Loading vintage 2019
+[18:29:20] INFO     1,464,534 loans (30yr FRM)
+[18:29:20] INFO DONE:   Loading vintage 2019  (0.1s, mem 5473MB diff+316MB)
+[18:29:20] INFO STARTING:   Loading vintage 2020
+[18:29:21] INFO     2,838,780 loans (30yr FRM)
+[18:29:21] INFO DONE:   Loading vintage 2020  (0.1s, mem 6089MB diff+619MB)
+[18:29:21] INFO STARTING:   Loading vintage 2021
+[18:29:21] INFO     3,043,714 loans (30yr FRM)
+[18:29:21] INFO DONE:   Loading vintage 2021  (0.2s, mem 6751MB diff+665MB)
+[18:29:21] INFO STARTING:   Loading vintage 2022
+[18:29:21] INFO     1,351,673 loans (30yr FRM)
+[18:29:21] INFO DONE:   Loading vintage 2022  (0.1s, mem 7026MB diff+277MB)
+[18:29:21] INFO STARTING:   Concatenating vintages
+[18:29:21] INFO DONE:   Concatenating vintages  (0.0s, mem 7027MB diff+3MB)
+[18:29:21] INFO   Total 30yr FRM loans: 31,688,129
+[18:29:22] INFO   Memory: 1876.1 MB
+[18:29:22] INFO STARTING:   Cleaning numeric sentinels
+[18:29:22] INFO DONE:   Cleaning numeric sentinels  (0.1s, mem 7066MB diff+39MB)
+[18:29:22] INFO STARTING:   Cleaning string sentinels
+[18:29:22] INFO DONE:   Cleaning string sentinels  (0.2s, mem 7088MB diff+22MB)
+[18:29:22] INFO STARTING:   Computing derived fields
+[18:29:24] INFO DONE:   Computing derived fields  (2.4s, mem 8892MB diff+1804MB)
+[18:29:24] INFO DONE: Loading origination data  (5.2s, mem 8892MB diff+8789MB)
+[18:29:24] INFO STARTING: Extracting terminal performance records
+[18:29:24] INFO ============================================================
+[18:29:24] INFO STEP 2: Extracting terminal records from performance data
+[18:29:24] INFO ============================================================
+[18:29:24] INFO STARTING:   Aggregating performance for 1999
+[18:29:32] INFO     1,217,693 loans
+[18:29:32] INFO DONE:   Aggregating performance for 1999  (8.1s, mem 4888MB diff-4004MB)
+[18:29:32] INFO STARTING:   Aggregating performance for 2000
+[18:29:34] INFO     746,368 loans
+[18:29:34] INFO DONE:   Aggregating performance for 2000  (1.4s, mem 5515MB diff+627MB)
+[18:29:34] INFO STARTING:   Aggregating performance for 2001
+[18:29:43] INFO     2,497,047 loans
+[18:29:44] INFO DONE:   Aggregating performance for 2001  (9.8s, mem 8833MB diff+3318MB)
+[18:29:44] INFO STARTING:   Aggregating performance for 2002
+[18:30:34] INFO     2,992,676 loans
+[18:30:34] INFO DONE:   Aggregating performance for 2002  (50.4s, mem 11836MB diff+3003MB)
+[18:30:34] INFO STARTING:   Aggregating performance for 2003
+[18:33:16] INFO     3,904,406 loans
+[18:33:16] INFO DONE:   Aggregating performance for 2003  (162.3s, mem 10850MB diff-986MB)
+[18:33:16] INFO STARTING:   Aggregating performance for 2004
+[18:33:50] INFO     1,677,203 loans
+[18:33:50] INFO DONE:   Aggregating performance for 2004  (33.6s, mem 9779MB diff-1073MB)
+[18:33:50] INFO STARTING:   Aggregating performance for 2005
+[18:34:09] INFO     1,611,455 loans
+[18:34:09] INFO DONE:   Aggregating performance for 2005  (18.9s, mem 9622MB diff-157MB)
+[18:34:09] INFO STARTING:   Aggregating performance for 2006
+[18:34:14] INFO     1,193,544 loans
+[18:34:14] INFO DONE:   Aggregating performance for 2006  (4.9s, mem 11207MB diff+1584MB)
+[18:34:14] INFO STARTING:   Aggregating performance for 2007
+[18:34:19] INFO     1,238,298 loans
+[18:34:19] INFO DONE:   Aggregating performance for 2007  (4.9s, mem 12119MB diff+912MB)
+[18:34:19] INFO STARTING:   Aggregating performance for 2008
+[18:34:24] INFO     1,233,041 loans
+[18:34:24] INFO DONE:   Aggregating performance for 2008  (5.2s, mem 11919MB diff-201MB)
+[18:34:24] INFO STARTING:   Aggregating performance for 2009
+[18:34:43] INFO     2,226,946 loans
+[18:34:43] INFO DONE:   Aggregating performance for 2009  (19.1s, mem 9794MB diff-2125MB)
+[18:34:43] INFO STARTING:   Aggregating performance for 2010
+[18:34:58] INFO     1,820,146 loans
+[18:34:58] INFO DONE:   Aggregating performance for 2010  (15.3s, mem 9244MB diff-550MB)
+[18:34:58] INFO STARTING:   Aggregating performance for 2011
+[18:35:06] INFO     1,382,960 loans
+[18:35:06] INFO DONE:   Aggregating performance for 2011  (7.5s, mem 10599MB diff+1354MB)
+[18:35:06] INFO STARTING:   Aggregating performance for 2012
+[18:35:38] INFO     2,033,243 loans
+[18:35:39] INFO DONE:   Aggregating performance for 2012  (32.9s, mem 11194MB diff+594MB)
+[18:35:39] INFO STARTING:   Aggregating performance for 2013
+[18:36:07] INFO     1,854,854 loans
+[18:36:07] INFO DONE:   Aggregating performance for 2013  (28.2s, mem 8732MB diff-2462MB)
+[18:36:07] INFO STARTING:   Aggregating performance for 2014
+[18:36:12] INFO     1,142,375 loans
+[18:36:12] INFO DONE:   Aggregating performance for 2014  (5.5s, mem 11670MB diff+2938MB)
+[18:36:12] INFO STARTING:   Aggregating performance for 2015
+[18:36:19] INFO     1,474,232 loans
+[18:36:19] INFO DONE:   Aggregating performance for 2015  (6.6s, mem 9549MB diff-2121MB)
+[18:36:19] INFO STARTING:   Aggregating performance for 2016
+[18:36:26] INFO     1,689,034 loans
+[18:36:26] INFO DONE:   Aggregating performance for 2016  (7.3s, mem 8199MB diff-1350MB)
+[18:36:26] INFO STARTING:   Aggregating performance for 2017
+[18:36:31] INFO     1,380,244 loans
+[18:36:31] INFO DONE:   Aggregating performance for 2017  (4.7s, mem 11379MB diff+3179MB)
+[18:36:31] INFO STARTING:   Aggregating performance for 2018
+[18:36:33] INFO     1,288,262 loans
+[18:36:33] INFO DONE:   Aggregating performance for 2018  (2.3s, mem 11808MB diff+429MB)
+[18:36:33] INFO STARTING:   Aggregating performance for 2019
+[18:36:36] INFO     1,784,640 loans
+[18:36:36] INFO DONE:   Aggregating performance for 2019  (2.5s, mem 12018MB diff+210MB)
+[18:36:36] INFO STARTING:   Aggregating performance for 2020
+[18:36:57] INFO     3,915,178 loans
+[18:36:57] INFO DONE:   Aggregating performance for 2020  (21.1s, mem 10666MB diff-1352MB)
+[18:36:57] INFO STARTING:   Aggregating performance for 2021
+[18:37:10] INFO     4,096,814 loans
+[18:37:10] INFO DONE:   Aggregating performance for 2021  (13.3s, mem 7261MB diff-3405MB)
+[18:37:10] INFO STARTING:   Aggregating performance for 2022
+[18:37:12] INFO     1,580,742 loans
+[18:37:12] INFO DONE:   Aggregating performance for 2022  (1.7s, mem 8269MB diff+1007MB)
+[18:37:12] INFO STARTING:   Concatenating yearly terminal records
+[18:37:12] INFO DONE:   Concatenating yearly terminal records  (0.3s, mem 8223MB diff-46MB)
+[18:37:12] INFO   Total terminal records: 45,981,401
+[18:37:12] INFO   Memory: 1151.2 MB
+[18:37:12] INFO DONE: Extracting terminal performance records  (468.0s, mem 8215MB diff-676MB)
+[18:37:12] INFO STARTING: Building survival table
+[18:37:12] INFO ============================================================
+[18:37:12] INFO STEP 3: Joining origination and performance data
+[18:37:12] INFO ============================================================
+[18:37:12] INFO STARTING:   Inner join on LoanSequenceNumber
+[18:38:04] INFO DONE:   Inner join on LoanSequenceNumber  (51.8s, mem 1593MB diff-6622MB)
+[18:38:04] INFO   Joined rows: 31,688,129
+[18:38:04] INFO   (Origination had 31,688,129, performance had 45,981,401)
+[18:38:04] INFO STARTING:   Building event indicators
+[18:38:06] INFO DONE:   Building event indicators  (2.1s, mem 1970MB diff+374MB)
+[18:38:06] INFO STARTING:   Cleaning duration
+[18:38:07] INFO DONE:   Cleaning duration  (0.7s, mem 2092MB diff+123MB)
+[18:38:08] INFO 
+[18:38:08] INFO   Final survival table: 31,688,129 loans
+[18:38:08] INFO     Prepaid (event):              21,748,774 ( 68.6%)
+[18:38:08] INFO     Credit-related termination:      532,230 (  1.7%)
+[18:38:08] INFO     Other termination (whole-loan / RPL etc.):    265,311 (  0.8%)
+[18:38:08] INFO     Still active (right-censored): 9,141,814 ( 28.8%)
+[18:38:08] INFO     --- For prepayment KM, censored = 9,939,355 (31.4%)
+[18:38:08] INFO DONE: Building survival table  (55.8s, mem 2454MB diff-5761MB)
+[18:38:11] INFO STARTING: Writing survival_table.parquet
+[18:38:28] INFO DONE: Writing survival_table.parquet  (17.1s, mem 10350MB diff+7485MB)
+[18:38:28] INFO ============================================================
+[18:38:28] INFO SUMMARY
+[18:38:28] INFO ============================================================
+[18:38:28] INFO   Loans:        31,688,129
+[18:38:28] INFO   Columns:      39
+[18:38:28] INFO   Duration:     median=35.0, mean=49.4, max=320
+[18:38:28] INFO   Prepay rate:  0.6863
+[18:38:28] INFO   File:         C:\Users\Dani\Documents\egyetem\Baruch\MTH 9877 Interest Rate and Credit Models\assignment3\claude2\survival_table.parquet (537.6 MB)
+[18:38:28] INFO   Columns:      ['LoanSequenceNumber', 'CreditScore', 'FirstPaymentDate', 'FirstTimeHomebuyerFlag', 'MaturityDate', 'MortgageInsurancePercentage', 'NumberofUnits', 'OccupancyStatus', 'OriginalCombinedLoantoValueCLTV', 'OriginalDebttoIncomeRatio', 'OriginalUPB', 'OriginalLoantoValueLTV', 'OriginalInterestRate', 'Channel', 'PropertyState', 'PropertyType', 'LoanPurpose', 'OriginalLoanTerm', 'NumberofBorrowers', 'PrepaymentPenaltyMortgageFlag', 'SuperConformingFlag', 'HARPIndicator', 'ProgramIndicator', 'VintageYear', 'VintageQuarter', 'FICO_bucket', 'LTV_bucket', 'VintageBucket', 'Duration', 'LastReportingPeriod', 'ZeroBalanceCode', 'LastInterestRate', 'MaxDelinquency', 'EverDelinquent90Plus', 'Prepaid', 'CreditTerminated', 'Terminated', 'Event_Prepay', 'RateChange']

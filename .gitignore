@@ -4,3 +4,12 @@ Monthly_Performance_historical_data_time/
 processed/*.parquet
 .DS_Store
 .claude/
+
+# Large data files
+samples/
+AtoD/survival_table.parquet
+AtoD/results_cd/C_predictions.parquet
+AtoD/results_cd/D_predictions.parquet
+AtoD/results_cd/canonical_split.parquet
+AtoD/results_cd/canonical_split_with_val.parquet
+AtoD/__pycache__/
