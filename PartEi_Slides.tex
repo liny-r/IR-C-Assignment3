@@ -60,7 +60,7 @@
         \small
         \begin{tabular}{@{}ll@{}}
             $d_j^{(k)}$ & cause-$k$ exits at $t_j$ \\[2pt]
-            $n_j^{\mathrm{KM}}$ & risk set \textcolor{bad}{excluding} competing-event loans \\[2pt]
+            $n_j^{\mathrm{KM}}$ & risk set excluding competing-event loans \\[2pt]
         \end{tabular}
         \end{block}
 
@@ -73,7 +73,7 @@
         \small
         \begin{tabular}{@{}ll@{}}
             $d_{kj}$        & cause-$k$ exits at $t_j$ \\[2pt]
-            $n_j$           & risk set \textcolor{good}{including} all exits \\[2pt]
+            $n_j$           & risk set including all exits \\[2pt]
             $\hat{S}(t_j^-)$ & overall survival just before $t_j$ \\[2pt]
         \end{tabular}
         \end{block}
@@ -81,8 +81,8 @@
     \vspace{0.6em}
     \begin{center}
         \small
-        \textcolor{bad}{KM}: competing exits censored $\Rightarrow$ denominator too small $\Rightarrow$ each increment inflated.\\[3pt]
-        \textcolor{good}{AJ}: $\hat{S}(t_j^-)$ shrinks with every exit $\Rightarrow$ $\hat{F}^{(\mathrm{pre})} + \hat{F}^{(\mathrm{def})} + \hat{S} = 1$ always.
+        KM: competing exits censored $\Rightarrow$ denominator too small $\Rightarrow$ each increment inflated.\\[3pt]
+        AJ: $\hat{S}(t_j^-)$ shrinks with every exit $\Rightarrow$ $\hat{F}^{(\mathrm{pre})} + \hat{F}^{(\mathrm{def})} + \hat{S} = 1$ always.
     \end{center}
 \end{frame}
 
@@ -98,9 +98,12 @@
         \begin{center}
         \vspace{1em}
         \small
+        \textbf{Cumulative Incidence Function}\\[3pt]
+        $F_k(t) = P(\text{exit by }t,\ \text{cause }k)$\\[10pt]
+        \textbf{Aalen--Johansen CIF partition}\\[4pt]
         \begin{tabular}{lccc}
             \toprule
-            & Pre & Def & Active \\
+            & Prepaid & Default & Active \\
             \midrule
             5 yr  & 61.4\% & 1.1\% & 37.6\% \\
             10 yr & 83.3\% & 2.2\% & 14.5\% \\
@@ -119,6 +122,7 @@
     \vspace{-0.3em}
     \begin{center}
         \small
+        \textbf{KM overstatement of prepayment probability}\\[4pt]
         \begin{tabular}{lccc}
             \toprule
             Horizon & $\hat{F}_{\mathrm{KM}}$ & $\hat{F}_{\mathrm{AJ}}$ & Bias \\
@@ -138,7 +142,41 @@
     \end{center}
 \end{frame}
 
-% ---- 6. CS-Cox forest plots ----------------------------------------------
+% ---- 6. Cause-specific Cox model -----------------------------------------
+\begin{frame}{Cause-specific Cox: one separate hazard model per cause.}
+    \begin{columns}[T,onlytextwidth]
+        \column{0.54\textwidth}
+        \begin{block}{Cause-Specific Cox}
+        \[
+            h_k(t \mid \mathbf{x}) = h_{0k}(t)\,\exp\!\bigl(\boldsymbol{\beta}_k^\top\mathbf{x}\bigr),
+            \quad k \in \{\mathrm{pre},\,\mathrm{def}\}
+        \]
+        \[
+            \ell(\boldsymbol{\beta}_k) = \sum_{i:\,E_i=k}
+            \!\Biggl[
+                \boldsymbol{\beta}_k^\top \mathbf{x}_i
+                - \log\!\sum_{j\in\mathcal{R}(t_i)}
+                e^{\boldsymbol{\beta}_k^\top\mathbf{x}_j}
+            \Biggr]
+        \]
+        \end{block}
+        \vspace{0.4em}
+        \small
+        $\mathcal{R}(t_i)$: all loans still active just before $t_i$.\\[3pt]
+        Competing-cause exits are \textbf{censored} --- they leave
+        $\mathcal{R}(t)$ without contributing to $\ell$.
+
+        \column{0.42\textwidth}
+        \small\vspace{0.4em}
+
+        \normalsize\textbf{Additional features}\\[6pt]
+        \small
+        \textbf{Max Delinquency} --- months past due over loan life\\[6pt]
+        \textbf{Ever 90+ DQ} --- binary flag for severe delinquency
+    \end{columns}
+\end{frame}
+
+% ---- 7. CS-Cox forest plots ----------------------------------------------
 \begin{frame}{Prepayment and default respond to opposite covariate effects.}
     \begin{center}
         \includegraphics[width=\linewidth]{processed/E1_cause_specific_cox}
@@ -150,6 +188,7 @@
     \vspace{0.2em}
     \begin{center}
     \small
+    \textbf{Naive Cox vs.\ cause-specific coefficients}\\[4pt]
     \begin{tabular}{lrrrp{2.6cm}}
         \toprule
         \textbf{Covariate} & \textbf{Naive $\hat\beta$} & \textbf{Prepay $\hat\beta$} & \textbf{Default $\hat\beta$} & \\
@@ -161,27 +200,34 @@
         LTV              & $-0.007$ & \textcolor{bad}{$-0.011$}  & \textcolor{good}{$+0.041$} & \textbf{opposite} \\
         Max Delinquency  & $-0.123$ & \textcolor{bad}{$-0.245$}  & \textcolor{good}{$+0.298$} & \textbf{opposite} \\
         Ever 90+ DQ      & $-0.035$ & \textcolor{bad}{$-0.071$}  & \textcolor{good}{$+0.270$} & \textbf{opposite} \\
-        Investment prop. & $-0.289$ & \textcolor{bad}{$-0.297$}  & $+0.027$                   & diverge \\
         \bottomrule
     \end{tabular}
     \end{center}
     \vspace{0.3em}
     \begin{center}
         \small
-        Naive Max Delinquency ($-0.123$) hides a $+0.543$ cause-specific spread.
-        \quad $e^{0.256}\approx1.29$ prepay; \; $e^{0.298}\approx1.35$ default.
+        Each extra month delinquent raises default hazard by $35\%$ and cuts prepayment hazard by $22\%$
+        --- yet the naive coefficient ($-0.123$) conceals both, collapsing a $+0.543$ spread to near zero.
     \end{center}
 \end{frame}
 
 % ---- 8. Key Takeaways ----------------------------------------------------
 \begin{frame}{Key Takeaways}
-    \begin{enumerate}\itemsep5pt
-        \item \textbf{Competing risks are not optional}: 4 covariates flip sign between causes.
-        \item \textbf{KM bias reaches $+$2.2\,pp at 20 years}: coherent forecasting requires Aalen--Johansen.
-        \item \textbf{Vintage dominates}: 2007 default CIF is $6\times$ long-run average; post-2020 prepayment is frozen.
-        \item \textbf{FICO separates default $6\times$; it barely separates prepayment}.
-        \item \textbf{Rate incentive is the dominant prepayment signal with zero default content}: $e^{0.256} \approx 1.29$.
-        \item \textbf{Fine--Gray $\approx$ cause-specific Cox here}; the distinction is material in subprime or crisis pools.
+    \begin{enumerate}\itemsep8pt
+        \item \textbf{Default and prepayment are competing risks}\\
+              \small A naive Cox model is biased and conflates two economically opposite processes.
+
+        \item \textbf{Kaplan--Meier overstates prepayment probability by up to $+$2.2\,pp}\\
+              \small It ignores the competing cause absorbing risk; Aalen--Johansen is required.
+
+        \item \textbf{CIF curves reveal large cohort-level variation}\\
+              \small The 2007 cohort's default CIF is $6\times$ the long-run average; post-2020 prepayment CIF is nearly flat due to rate lock-in.
+
+        \item \textbf{FICO drives default; rate incentive drives prepayment}\\
+              \small Each feature is essentially invisible to the other cause --- the two risks operate through separate channels.
+
+        \item \textbf{Fine--Gray and cause-specific Cox give similar results here}\\
+              \small The gap opens when default and prepayment are strongly correlated --- crisis vintages or high-risk borrowers.
     \end{enumerate}
 \end{frame}
 

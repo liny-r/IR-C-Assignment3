@@ -72,7 +72,7 @@ Censored (still active)   & 11{,}510{,}158 & 33.8\% \\
 Covariate snapshots by event type confirm two distinct populations:
 prepaid loans have higher FICO ($+44$ vs defaulters), lower LTV ($-8.6$\,pp),
 and lower origination rate ($-85$\,bp). Cox and CIF models use a
-\textbf{100{,}000-loan stratified sample} (proportional by vintage year).
+\textbf{5\% stratified sample ($\approx$1.7M loans)} drawn proportionally by vintage year.
 
 % =================================================================
 \section{Two Competing Causes: Exploratory Analysis}
@@ -196,7 +196,9 @@ Partial likelihood:
   \!\left[\boldsymbol{\beta}_k^\top \mathbf{x}_i
   - \log \!\sum_{j \in \mathcal{R}(t_i)} e^{\boldsymbol{\beta}_k^\top \mathbf{x}_j}\right].
 \end{equation}
-13 z-scored features; $\ell_2$ penalizer $= 0.1$.
+14 features: 10 numeric (credit score, LTV, DTI, UPB, origination-era macro, rate incentive,
+max delinquency, ever 90+ DQ) $+$ 4 one-hot (loan purpose $\times$ 2, occupancy $\times$ 2);
+$\ell_2$ penalizer $= 0.1$.
 
 \begin{figure}[h]
   \centering

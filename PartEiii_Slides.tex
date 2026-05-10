@@ -1,0 +1,241 @@
+\documentclass[10pt,aspectratio=169]{beamer}
+
+\usetheme{Madrid}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+\definecolor{accent}{HTML}{2563EB}
+\definecolor{accent2}{HTML}{DC2626}
+\definecolor{accent3}{HTML}{059669}
+\definecolor{good}{HTML}{059669}
+\definecolor{bad}{HTML}{DC2626}
+
+\setbeamercolor{frametitle}{bg=accent,fg=white}
+\setbeamertemplate{itemize item}{\textcolor{accent}{$\bullet$}}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+\title{Neural Survival Models: LongitudinalDeepHit}
+\subtitle{Part E(iii) --- Transformer Encoder for Competing Risks}
+\author{Yueqi Lin}
+\institute{MTH 9877 --- Baruch College, Spring 2026}
+\date{May 13, 2026}
+
+% =========================================================================
+\begin{document}
+
+% ---- Title ---------------------------------------------------------------
+\begin{frame}[plain]
+    \titlepage
+\end{frame}
+
+% ---- 1. Motivation -------------------------------------------------------
+\begin{frame}{Why go beyond Cox? Mortgage prepayment is path-dependent.}
+    \begin{columns}[T,onlytextwidth]
+        \column{0.48\textwidth}
+        \begin{block}{Cox / Andersen-Gill limitations}
+        \small
+        \begin{itemize}\itemsep4pt
+            \item Proportional hazards: covariate effect is \textbf{constant over time}
+            \item Single scalar score — cannot model the \textbf{S-curve shape} of prepayment
+            \item Competing risks require separate model fits; no shared representation
+            \item Cannot exploit the \textbf{sequence structure} of monthly covariate history
+        \end{itemize}
+        \end{block}
+
+        \column{0.48\textwidth}
+        \begin{block}{What a sequence model can do}
+        \small
+        \begin{itemize}\itemsep4pt
+            \item Read the full monthly path $[\mathbf{x}_1, \dots, \mathbf{x}_T]$ --- \textbf{burnout is encoded}
+            \item Produce nonlinear, time-varying hazard rates $\lambda_k(t \mid \mathbf{x})$
+            \item Model prepayment and default \textbf{jointly} via shared encoder
+            \item Attention weights identify \textbf{which months} drive the prediction
+        \end{itemize}
+        \end{block}
+    \end{columns}
+    \vspace{0.4em}
+    \begin{center}
+        \small
+        A 2007-vintage subprime loan and a 2020-vintage prime loan may have
+        identical origination snapshots but \textcolor{bad}{opposite} trajectory histories ---
+        only a sequence model distinguishes them.
+    \end{center}
+\end{frame}
+
+% ---- 2. Architecture -----------------------------------------------------
+\begin{frame}{LongitudinalDeepHit: Transformer encoder with two CIF output heads.}
+    \begin{columns}[T,onlytextwidth]
+        \column{0.52\textwidth}
+        \begin{block}{Architecture}
+        \small
+        \begin{tabular}{@{}ll@{}}
+            \textbf{Input}  & $(B,\, T_{\max}{=}120,\, D{=}13)$ padded sequences \\[1pt]
+            \textbf{Proj.}  & Linear $D \to d_{\text{model}}{=}64$ \\[1pt]
+            \textbf{PE}     & Sinusoidal positional encoding on loan age \\[1pt]
+            \textbf{Enc.}   & $\times 2$ pre-norm layers, 4 heads, causal mask \\[1pt]
+            \textbf{Head 1} & FC $64\!\to\!128\!\to\!T_{\max}$, Sigmoid $\Rightarrow \lambda_1(t)$ \\[1pt]
+            \textbf{Head 2} & FC $64\!\to\!128\!\to\!T_{\max}$, Sigmoid $\Rightarrow \lambda_2(t)$ \\[1pt]
+            \textbf{CIFs}   & Competing-risk chain product \\
+        \end{tabular}
+        \end{block}
+
+        \vspace{0.15em}
+        \begin{block}{Competing-risk CIFs}
+        \small
+        \vspace{-0.3em}
+        \[
+            \text{CIF}_k(t) = \textstyle\sum_{s=1}^{t} \lambda_k(s)\cdot S(s-1), \quad
+            S(t) = \textstyle\prod_{s=1}^{t}(1-\lambda_1(s))(1-\lambda_2(s))
+        \]
+        \vspace{-0.6em}
+        Guarantees $\text{CIF}_1 + \text{CIF}_2 + S = 1$ at every $t$.
+        \end{block}
+
+        \column{0.44\textwidth}
+        \begin{block}{Training objective}
+        \small
+        \vspace{-0.2em}
+        \[
+            \mathcal{L} = \mathcal{L}_{\text{NLL}} + \alpha\,\mathcal{L}_{\text{rank}},
+            \quad \alpha=0.2
+        \]
+        \vspace{-0.2em}
+        \textbf{NLL}: discrete-time cause-specific likelihood\\[2pt]
+        \textbf{Ranking loss}: soft pairwise concordance (DeepHit-style)\\[4pt]
+        \begin{tabular}{@{}ll@{}}
+            Params  & 115,440 \\
+            Data    & 100K loans, 4.5M rows \\
+            Epochs  & 40  (Adam, cosine LR) \\
+            Loss    & $5.05 \to 0.94$ \\
+        \end{tabular}
+        \end{block}
+    \end{columns}
+\end{frame}
+
+% ---- 3. Training curves --------------------------------------------------
+\begin{frame}{Loss converges cleanly; NLL and ranking components both decline.}
+    \begin{center}
+        \includegraphics[width=0.92\linewidth]{processed/Eiii_training_curves}
+    \end{center}
+\end{frame}
+
+% ---- 4. CIF archetypes ---------------------------------------------------
+\begin{frame}{Model correctly separates prime and subprime CIF trajectories.}
+    \begin{center}
+        \includegraphics[width=0.90\linewidth]{processed/Eiii_cif_archetypes}
+    \end{center}
+    \vspace{-0.4em}
+    \begin{center}
+        \small
+        Macro scenario: Jan 2005 -- Dec 2015 (covers a full rate cycle).
+        Subprime default CIF ($\sim$20\%) separates cleanly from prime ($<$2\%) ---
+        no explicit pricing inputs; the model learns from covariate history.
+    \end{center}
+\end{frame}
+
+% ---- 5. Gradient sensitivity ---------------------------------------------
+\begin{frame}{Rate incentive and current LTV dominate prepayment; FICO dominates default.}
+    \begin{center}
+        \includegraphics[width=0.84\linewidth]{processed/Eiii_gradient_sensitivity}
+    \end{center}
+    \vspace{-0.4em}
+    \begin{center}
+        \small
+        \textcolor{bad}{Red} = time-varying features. \quad \textcolor{accent}{Blue} = static features.\\
+        Dynamic features rank above static for prepayment; FICO and unemployment lead for default ---
+        consistent with cause-specific Cox in E(i).
+    \end{center}
+\end{frame}
+
+% ---- 6. Attention heatmaps -----------------------------------------------
+\begin{frame}{Attention heads specialise: early months capture origination quality.}
+    \begin{center}
+        \includegraphics[width=0.90\linewidth]{processed/Eiii_attention_heatmaps}
+    \end{center}
+    \vspace{-0.3em}
+    \begin{center}
+        \small
+        Each row = one attention head at the last observed month.
+        Heads H1/H2 concentrate on early months (credit quality at origination);
+        H3/H4 attend to recent months (current rate incentive).
+        Causal mask prevents position $t$ from attending to $t+1$.
+    \end{center}
+\end{frame}
+
+% ---- 7. Model performance ------------------------------------------------
+\begin{frame}{AUC at fixed horizons --- with an honest interpretation of the numbers.}
+    \begin{columns}[T,onlytextwidth]
+        \column{0.52\textwidth}
+        \begin{center}
+            \small
+            \begin{tabular}{lcccc}
+                \toprule
+                \textbf{Model} & \textbf{T=12} & \textbf{T=24} & \textbf{T=36} & \textbf{T=60} \\
+                \midrule
+                Part D DeepCox\textsuperscript{$\dagger$}   & 0.684 & 0.701 & 0.721 & 0.729 \\
+                \midrule
+                DeepHit (20K)\textsuperscript{$\ddagger$}   & 0.973 & 0.976 & 0.977 & 0.962 \\
+                DeepHit (338)\textsuperscript{$\S$}         & 0.991 & 0.987 & 0.977 & 0.936 \\
+                \bottomrule
+            \end{tabular}
+            \vspace{0.5em}\\
+            \small
+            $^\dagger$ 597K canonical test, origination features only\\
+            $^\ddagger$ 20K oversampled hold-out, vintage-mixed\\
+            $^\S$ 338 canonical-vintage loans in hold-out
+        \end{center}
+
+        \column{0.44\textwidth}
+        \begin{alertblock}{Why 0.97 $\neq$ ``better than Part D''}
+        \small
+        \begin{enumerate}\itemsep3pt
+            \item \textbf{Vintage overlap}: random 80/20 split --- model trains and tests on same cohorts
+            \item \textbf{Sequence leakage}: Transformer sees full monthly history up to the event month ---
+                  timing is partially revealed
+        \end{enumerate}
+        \vspace{4pt}
+        A fair comparison requires a \textbf{vintage-based out-of-time split}.
+        The structural advantage is real; the magnitude is inflated.
+        \end{alertblock}
+    \end{columns}
+\end{frame}
+
+% ---- 8. Key Takeaways ----------------------------------------------------
+\begin{frame}{Key Takeaways}
+    \begin{enumerate}\itemsep5pt
+        \item \textbf{Sequence structure is learnable}: the Transformer successfully
+              exploits the full monthly covariate path --- burnout and rate cycles
+              are encoded without feature engineering.
+        \item \textbf{Competing risks are modelled end-to-end}: shared encoder, two heads,
+              guaranteed probability partition at every month.
+        \item \textbf{Gradient sensitivity replicates Cox findings}:
+              \texttt{rate\_incentive} + \texttt{ELTV} drive prepayment;
+              \texttt{FICO} + \texttt{unemployment} drive default.
+        \item \textbf{Attention is interpretable}: different heads specialise on
+              origination quality vs.\ current rate environment.
+        \item \textbf{AUC is inflated by methodology}: vintage-based out-of-time split
+              and a larger training set are the two most impactful improvements.
+        \item \textbf{Brier scores $<$ 0.05 at all horizons}: probabilistic forecasts
+              are well-calibrated regardless of the AUC comparison issue.
+    \end{enumerate}
+\end{frame}
+
+% ---- Thank you ------------------------------------------------------------
+\begin{frame}[plain]
+    \vspace*{2em}
+    \begin{center}
+        {\Huge \textbf{Thank you}}\\[1.5em]
+        {\Large Questions?}\\[2.5em]
+        \small
+        Lee et al.\ (2018) \textit{DeepHit} $\cdot$
+        Sadhwani et al.\ (2021) \textit{J.\ Fin.\ Econometrics} $\cdot$
+        Vaswani et al.\ (2017) \textit{Attention Is All You Need}
+    \end{center}
+\end{frame}
+
+\end{document}

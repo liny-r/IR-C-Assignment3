@@ -1,0 +1,52 @@
+Part E(iv) — Scenario Analysis Speaker Script
+=============================================
+
+Slide 1 — Title
+"For the last part, we did stress-testing prepayment models under interest rate shocks and translating that into MBS cash flow projections."
+
+---
+
+Slide 2 — Setup: why TV Cox is the primary model
+"The central question in scenario analysis is: if the Fed cuts rates by 300 basis points tomorrow, what happens to prepayment speed? The answer depends entirely on whether your model has a market-rate channel.
+
+The TV Cox model from E(ii) does, because rate_incentive — the spread between the origination coupon and the current market rate — is a live time-varying covariate. A 100bp rate cut immediately shifts that spread by +1pp, which flows through the model analytically as exp(β_ri × 1.0). No approximation needed.
+
+Partner's DeepCox has no such channel. Its rate variable is the origination coupon — a fixed number. The only way to shock it is to pretend the loan was originated at a different rate, which is economically backwards: a lower coupon means less incentive to refinance relative to that coupon, so the model predicts less prepayment when rates fall. That's the wrong direction."
+
+---
+
+Slide 3 — Shock sensitivity
+"This plot makes the point visually. On the left, the blue dots — TV Cox fitted Δlog-hazard — sit exactly on the analytic formula line across all seven scenarios. A 300bp rate cut raises the log-hazard by +0.123; a 300bp hike lowers it by −0.123. The model is internally consistent and fully transparent.
+
+On the right, DeepCox. A 300bp rate cut produces a Δlog-hazard of −1.05 — the sign is reversed. This isn't a calibration issue. It's structural. Static origination models cannot be used for market-rate scenario analysis without rearchitecting to include a market-rate input."
+
+---
+
+Slide 4 — Survival curves
+"Here are the survival curves under seven scenarios. The ordering is exactly as expected — lower rates mean faster prepayment, lower survival. The ±300bp range shifts 10-year survival by 6.7 percentage points: from 10.4% in the deep-cut scenario to 17.1% in the deep-hike scenario. Median prepayment month shifts by 11 months. The monotonic ordering is a necessary consistency check — it passes cleanly."
+
+---
+
+Slide 5 — S-curve and 2D contour
+"The left panel is the classic prepayment S-curve: annual CPR as a function of rate incentive at loan age 36 months. CPR ranges from 12.6% at −300bp to 16.5% at +400bp. The slope is flatter than you'd see in agency MBS — that's because the Ridge penalizer and the 500K-row subsample compress the β_ri coefficient. The true population sensitivity is higher.
+
+The right panel shows joint sensitivity over rate incentive and FICO on top, LTV on the bottom. The FICO surface shows CPR rising steeply for FICO above 720 — credit access gates refinancing. The LTV surface shows CPR plateauing for LTV above 90, regardless of how positive the rate incentive is — negative equity prevents refinancing even when the option is in the money. Both constraints were identified in the coefficient analysis in E(i) and E(ii)."
+
+---
+
+Slide 6 — MBS cash flows
+"Finally, the cash flow projection. We run 200 Monte Carlo paths with 25bp noise around each scenario and compute WAL and price for a representative $300K, 6.5% coupon loan.
+
+The baseline price is $98.52 — below par, which is correct because the market rate of 7% exceeds the coupon of 6.5%. The WAL range across ±300bp is 0.57 years, and the price range is $17.70.
+
+The key structural result is negative convexity: the price gain from a 300bp cut is $8.83, and the price loss from a 300bp hike is $8.87 — the upside is slightly smaller than the downside. That's the prepayment ceiling at work: when rates fall, borrowers prepay and return principal at par, capping the price appreciation. Monte Carlo uncertainty is $0.01–0.05, negligible relative to the scenario spread."
+
+---
+
+Slide 7 — Key Takeaways
+"To summarize: time-varying covariates are not optional for rate scenario analysis — static models produce the wrong sign. TV Cox is both transparent and analytically exact. The rate sensitivity in our model is compressed relative to real agency MBS, and the two fixes are straightforward: lower the Ridge penalty and expand the training sample. Negative convexity is correctly captured. And the 2D contour confirms the joint constraint structure we identified in E(i) and E(ii) — FICO gates access, LTV caps the ceiling."
+
+---
+
+Slide 8 — Thank you
+(No script needed — take questions.)

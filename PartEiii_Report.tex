@@ -1,0 +1,243 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage[protrusion=true,expansion=false]{microtype}
+\usepackage{enumitem}
+\usepackage{titlesec}
+
+\hypersetup{colorlinks=true,linkcolor=black!70!blue,urlcolor=blue!60!black}
+
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{1.0em}{0.4em}
+\titlespacing*{\subsection}{0pt}{0.7em}{0.2em}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.4em}
+\captionsetup{font=small,labelfont=bf,skip=4pt}
+
+\title{\vspace{-1.5em}\textbf{Neural Survival Models for Mortgage Risk:\\
+LongitudinalDeepHit with Transformer Encoder}\\[0.3em]
+\large IR\&C Assignment 3, Part E(iii) --- Spring 2026}
+\author{Yueqi Lin\\\small MTH 9877, Baruch College}
+\date{May 2026}
+
+\begin{document}
+\maketitle
+\vspace{-1.2em}
+
+% =================================================================
+\section{Introduction}
+% =================================================================
+
+Cox proportional hazards models --- including the Andersen--Gill extension from E(ii) ---
+share two structural limitations. First, the proportional hazards assumption constrains
+the covariate effect to be constant over time. Second, a linear log-hazard cannot represent
+the S-curve shape of prepayment: response is near-zero for out-of-the-money loans,
+steep near the at-the-money threshold, and burnout-limited for deeply in-the-money pools.
+
+\textbf{LongitudinalDeepHit} addresses both by reading the full monthly covariate history
+$[\mathbf{x}_1, \ldots, \mathbf{x}_T]$ through a Transformer encoder with causal attention,
+then producing discrete monthly hazard rates $\lambda_1(t)$ (prepayment) and $\lambda_2(t)$
+(default) via two cause-specific output heads. The competing-risk chain product guarantees
+$\text{CIF}_1(t) + \text{CIF}_2(t) + S(t) = 1$ at every month $t$.
+
+% =================================================================
+\section{Architecture}
+% =================================================================
+
+\subsection{Model structure}
+
+\begin{center}
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{Component} & \textbf{Specification} \\
+\midrule
+Input & $(B, T_{\max}{=}120, D{=}13)$ padded monthly sequences \\
+Projection & Linear $D \to d_{\text{model}} = 64$ \\
+Positional encoding & Sinusoidal on loan age \\
+Encoder & $\times 2$ pre-norm layers, 4 heads, causal mask \\
+Prepayment head & FC $64 \to 128 \to T_{\max}$, Sigmoid $\Rightarrow \lambda_1(t)$ \\
+Default head & FC $64 \to 128 \to T_{\max}$, Sigmoid $\Rightarrow \lambda_2(t)$ \\
+Total parameters & 115,440 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Competing-risk CIFs}
+
+\begin{equation}
+    \text{CIF}_k(t) = \sum_{s=1}^{t} \lambda_k(s)\cdot S(s-1),
+    \qquad S(t) = \prod_{s=1}^{t}(1-\lambda_1(s))(1-\lambda_2(s)).
+\end{equation}
+
+\subsection{Training objective}
+
+\begin{equation}
+    \mathcal{L} = \mathcal{L}_{\text{NLL}} + \alpha\,\mathcal{L}_{\text{rank}},
+    \quad \alpha = 0.2.
+\end{equation}
+
+$\mathcal{L}_{\text{NLL}}$ is the discrete-time cause-specific negative log-likelihood;
+$\mathcal{L}_{\text{rank}}$ is a soft pairwise concordance loss over observed events
+(DeepHit-style). Training: 40 epochs, Adam lr$= 10^{-3}$, cosine schedule, batch$= 256$.
+Total loss converges from 5.05 to 0.94; NLL component from 4.53 to 0.40.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\linewidth]{processed/Eiii_training_curves}
+    \caption{Training curves. Total loss (left), NLL component (centre),
+      ranking component (right). All three decline monotonically, confirming
+      stable training without gradient explosions or collapses.}
+\end{figure}
+
+% =================================================================
+\section{Data}
+% =================================================================
+
+\textbf{Sample}: 100,000 loans from the monthly panel (60K prepay, 5K default, 35K censored),
+yielding 4,491,550 loan-month rows after truncation at $T_{\max}=120$.
+The oversample of prepayment (60\% vs 65\% natural) ensures sufficient default events
+for the competing-risk CIF computation without dominating the training signal.
+
+Features are the same 13 as in E(ii): 8 static origination features and 5 time-varying
+macro features (ELTV, mortgage rate, unemployment, HPI YoY, rate incentive).
+
+80/20 random train/test split stratified by event type.
+
+% =================================================================
+\section{Results}
+% =================================================================
+
+\subsection{CIF archetype trajectories}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\linewidth]{processed/Eiii_cif_archetypes}
+    \caption{Predicted CIF trajectories for three loan archetypes under a Jan 2005 --
+      Dec 2015 macro scenario (covering a full rate cycle).
+      Left: prepayment CIF$_1$. Right: default CIF$_2$.
+      Subprime (FICO=640, LTV=95) default CIF reaches $\approx$20\% vs $<$2\% for prime ---
+      separation learned entirely from covariate history without explicit pricing inputs.}
+\end{figure}
+
+\subsection{Gradient sensitivity}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\linewidth]{processed/Eiii_gradient_sensitivity}
+    \caption{Mean $|\partial\text{CIF}/\partial\mathbf{x}|$ over 500 test loans and all timesteps.
+      Left: prepayment CIF$_1$ at month 60. Right: default CIF$_2$ at month 60.
+      Red: time-varying features. Blue: static features.}
+\end{figure}
+
+\textbf{Prepayment CIF$_1$}: \texttt{rate\_incentive} and \texttt{ELTV} dominate ---
+the classic S-curve: loans prepay when incentivized by a rate drop and have equity to refinance.
+Static features (FICO, DTI) are secondary.
+
+\textbf{Default CIF$_2$}: \texttt{FICO} and \texttt{unemployment} dominate ---
+origination credit quality and macro distress drive default, consistent with
+cause-specific Cox in E(i). \texttt{rate\_incentive} is near zero for default,
+confirming it is a prepayment-specific signal.
+
+Dynamic features (time-varying) consistently outrank static features for prepayment sensitivity.
+
+\subsection{Attention heatmaps}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\linewidth]{processed/Eiii_attention_heatmaps}
+    \caption{Attention weights at the last observed month for representative test loans.
+      Each row is one of the 4 attention heads; brighter = more weight.
+      Heads H1/H2 concentrate on early months (origination quality);
+      H3/H4 attend to recent months (current rate environment).
+      The causal mask ensures position $t$ cannot attend to $t+1$.}
+\end{figure}
+
+\subsection{AUC at fixed horizons}
+
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{AUC@T=12} & \textbf{AUC@T=24} & \textbf{AUC@T=36} & \textbf{AUC@T=60} \\
+\midrule
+Part D DeepCox (partner, 597K canonical test) & 0.684 & 0.701 & 0.721 & 0.729 \\
+E(iii) DeepHit --- 20K oversampled hold-out   & 0.973 & 0.976 & 0.977 & 0.962 \\
+E(iii) DeepHit --- canonical subset (338 loans) & 0.991 & 0.987 & 0.977 & 0.936 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Interpretation caveat.} The 0.97+ AUC reflects two compounding artifacts:
+(1) a random vintage-mixed 80/20 split --- train and test share the same cohort composition,
+so the model learns vintage-specific patterns rather than generalising to new cohorts;
+(2) the Transformer sees the full monthly covariate path up to the event month,
+partially revealing event timing.
+The 338-loan canonical subset (partner's vintage 2016--2019 test loans in the hold-out)
+is the most rigorous comparison. The structural advantage of the sequence model is real;
+the magnitude requires a vintage-based out-of-time split to measure correctly.
+
+\textbf{Brier scores} (20K hold-out): 0.028, 0.039, 0.045, 0.056 at $T= 12, 24, 36, 60$.
+All below 0.05 at short-to-medium horizons --- well-calibrated probabilistic forecasts
+regardless of the AUC comparison issue.
+
+% =================================================================
+\section{Key Findings and Insights}
+% =================================================================
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=3pt]
+
+  \item \textbf{Sequence structure is learnable.}
+        The Transformer successfully encodes burnout and rate cycles from the raw monthly
+        feature path without additional feature engineering.
+
+  \item \textbf{Competing risks modelled end-to-end.}
+        A shared encoder with two sigmoid heads guarantees
+        $\text{CIF}_1(t) + \text{CIF}_2(t) + S(t) = 1$ at every month --- the same
+        partition identity required of the Aalen--Johansen estimator in E(i).
+
+  \item \textbf{Gradient sensitivity replicates Cox findings.}
+        \texttt{rate\_incentive} $+$ \texttt{ELTV} drive prepayment; \texttt{FICO} $+$
+        \texttt{unemployment} drive default. The Transformer independently recovers
+        the cause-specific coefficient signs from E(i).
+
+  \item \textbf{Attention is interpretable.}
+        Different heads specialise on origination quality (early months) vs.\ current
+        rate environment (recent months), consistent with economic intuition.
+
+  \item \textbf{AUC inflation requires honest framing.}
+        A vintage-based out-of-time split and a larger training set are the two most
+        impactful improvements before comparing to Part D's 0.72--0.73 canonical AUC.
+
+  \item \textbf{Brier scores confirm calibration.}
+        Probabilistic forecasts are well-calibrated at all horizons $\le 36$ months,
+        making the model useful for risk-stratification and MBS pricing even before
+        the AUC inflation is corrected.
+
+\end{enumerate}
+
+\vspace{0.5em}
+\textbf{Priority improvements:}
+(1) Vintage-based out-of-time split (train 2000--2013, test 2014--2019).
+(2) Expand training sample to 200K--300K loans (panel has 1.3M prepay events).
+(3) Report integrated Brier score for a single model-selection number.
+
+\begin{thebibliography}{9}
+\small
+\bibitem{deephit2018}Lee, C., Zame, W.\ R., Yoon, J.\ and van der Schaar, M.\ (2018). DeepHit: a deep learning approach to survival analysis with competing risks. \textit{AAAI} 32.
+\bibitem{vaswani2017}Vaswani, A., et al.\ (2017). Attention is all you need. \textit{NeurIPS} 30.
+\bibitem{sadhwani2021}Sadhwani, A., Giesecke, K.\ and Sirignano, J.\ (2021). \textit{J.\ Financial Econometrics} 19:313--368.
+\end{thebibliography}
+
+\end{document}
