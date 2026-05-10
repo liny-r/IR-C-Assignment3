@@ -1,0 +1,179 @@
+\documentclass[10pt,aspectratio=169]{beamer}
+
+\usetheme{Madrid}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+\definecolor{accent}{HTML}{2563EB}
+\definecolor{accent2}{HTML}{DC2626}
+\definecolor{accent3}{HTML}{059669}
+\definecolor{good}{HTML}{059669}
+\definecolor{bad}{HTML}{DC2626}
+
+\setbeamercolor{frametitle}{bg=accent,fg=white}
+\setbeamertemplate{itemize item}{\textcolor{accent}{$\bullet$}}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+\title{Competing Risks: Prepayment vs.\ Default}
+\subtitle{Part E(i) --- Mortgage Survival Analysis}
+\author{Yueqi Lin}
+\institute{MTH 9877 --- Baruch College, Spring 2026}
+\date{May 13, 2026}
+
+% =========================================================================
+\begin{document}
+
+% ---- Title ---------------------------------------------------------------
+\begin{frame}[plain]
+    \titlepage
+\end{frame}
+
+% ---- 1. The two-cause problem --------------------------------------------
+\begin{frame}{Two competing fates, two different borrower stories.}
+    \begin{center}
+        \includegraphics[width=0.92\linewidth]{processed/E1_eda_duration}
+    \end{center}
+\end{frame}
+
+% ---- 2. Vintage defines the risk regime ----------------------------------
+\begin{frame}{Vintage era --- not FICO or LTV --- is the dominant risk driver.}
+    \begin{center}
+        \includegraphics[width=0.92\linewidth]{processed/E1_eda_vintage}
+    \end{center}
+\end{frame}
+
+% ---- 3. KM is wrong --------------------------------------------------------
+\begin{frame}{KM overstates prepayment probability because it ignores competing defaults.}
+    \begin{center}
+        \includegraphics[width=0.82\linewidth]{processed/E1_km_vs_aj_bias}
+    \end{center}
+    \vspace{-0.3em}
+    \begin{center}
+        \small
+        \begin{tabular}{lccc}
+            \toprule
+            Horizon & $\hat{F}_{\mathrm{KM}}$ & $\hat{F}_{\mathrm{AJ}}$ & Bias \\
+            \midrule
+            5 yr  & 61.9\% & 61.4\% & $+$0.45 pp \\
+            10 yr & 84.6\% & 83.3\% & $+$1.31 pp \\
+            20 yr & 93.4\% & 91.8\% & $+$2.23 pp \\
+            \bottomrule
+        \end{tabular}
+    \end{center}
+\end{frame}
+
+% ---- 4. AJ CIF formula + result ------------------------------------------
+\begin{frame}{The Aalen--Johansen estimator gives the only coherent probability partition.}
+    \begin{columns}[T,onlytextwidth]
+        \column{0.64\textwidth}
+        \begin{center}
+            \includegraphics[width=\linewidth]{processed/E1_competing_risks_cif}
+        \end{center}
+
+        \column{0.34\textwidth}
+        \vspace{1em}
+        \[
+            \hat{F}_k(t) = \sum_{t_j \le t} \hat{S}(t_j^{-})\cdot \frac{d_{kj}}{n_j}
+        \]
+        \[
+            \textstyle\sum_k \hat{F}_k + \hat{S} = 1
+        \]
+        \vspace{0.4em}
+        \small
+        \begin{tabular}{lcc}
+            \toprule
+            & Pre & Def \\
+            \midrule
+            5 yr  & 61.4\% & 1.1\% \\
+            10 yr & 83.3\% & 2.2\% \\
+            20 yr & 91.8\% & 3.1\% \\
+            \bottomrule
+        \end{tabular}
+        \vspace{0.4em}
+
+        \normalsize
+        37:1 ratio at 10 yr.\\
+        Burnout after month 40.
+    \end{columns}
+\end{frame}
+
+% ---- 5. Stratified CIF ---------------------------------------------------
+\begin{frame}{FICO separates default 6$\times$; LTV separates default 2$\times$ --- neither separates prepayment.}
+    \begin{center}
+        \includegraphics[height=0.78\textheight,keepaspectratio]{processed/E1_stratified_cif}
+    \end{center}
+\end{frame}
+
+% ---- 6. CS-Cox forest plots ----------------------------------------------
+\begin{frame}{Prepayment and default respond to opposite covariate effects.}
+    \begin{center}
+        \includegraphics[width=\linewidth]{processed/E1_cause_specific_cox}
+    \end{center}
+\end{frame}
+
+% ---- 7. Opposite signs table ---------------------------------------------
+\begin{frame}{Four covariates flip sign --- a combined model cancels both signals.}
+    \vspace{0.5em}
+    \begin{center}
+    \begin{tabular}{lccc}
+        \toprule
+        \textbf{Covariate} & \textbf{Prepay $\hat\beta$} & \textbf{Default $\hat\beta$} & \\
+        \midrule
+        Rate incentive   & \textcolor{good}{$+0.256$} & $+0.021$                    & (pure prepay signal) \\
+        FICO             & \textcolor{good}{$+0.010$} & \textcolor{bad}{$-0.047$}   & \textbf{opposite} \\
+        LTV              & \textcolor{bad}{$-0.011$}  & \textcolor{good}{$+0.041$}  & \textbf{opposite} \\
+        Max Delinquency  & \textcolor{bad}{$-0.245$}  & \textcolor{good}{$+0.298$}  & \textbf{opposite} \\
+        Investment prop. & \textcolor{bad}{$-0.297$}  & \textcolor{good}{$+0.270$}  & \textbf{opposite} \\
+        \bottomrule
+    \end{tabular}
+    \end{center}
+    \vspace{0.5em}
+    \begin{center}
+        \small $e^{0.256} \approx 1.29$: a 1-SD rise in rate spread raises prepayment hazard 29\%.
+        \quad $e^{0.298} \approx 1.35$: a 1-SD rise in max delinquency raises default hazard 35\%.
+    \end{center}
+\end{frame}
+
+% ---- 8. Fine-Gray --------------------------------------------------------
+\begin{frame}{Fine--Gray confirms cause-specific Cox; they differ only in high-default pools.}
+    \begin{center}
+        \includegraphics[height=0.68\textheight,keepaspectratio]{processed/E1_fg_comparison}
+    \end{center}
+    \vspace{-0.2em}
+    \begin{center}
+        \small Max coefficient difference: $|\Delta| = 0.004$.
+        \quad When $F_{\mathrm{def}}(t) \approx 0$: $\;\tilde{h}_1(t) \approx h_1(t)$.
+    \end{center}
+\end{frame}
+
+% ---- 9. Key Takeaways ----------------------------------------------------
+\begin{frame}{Key Takeaways}
+    \begin{enumerate}\itemsep5pt
+        \item \textbf{Competing risks are not optional}: 4 covariates flip sign between causes.
+        \item \textbf{KM bias reaches $+$2.2\,pp at 20 years}: coherent forecasting requires Aalen--Johansen.
+        \item \textbf{Vintage dominates}: 2007 default CIF is $6\times$ long-run average; post-2020 prepayment is frozen.
+        \item \textbf{FICO separates default $6\times$; it barely separates prepayment}.
+        \item \textbf{Rate incentive is the dominant prepayment signal with zero default content}: $e^{0.256} \approx 1.29$.
+        \item \textbf{Fine--Gray $\approx$ cause-specific Cox here}; the distinction is material in subprime or crisis pools.
+    \end{enumerate}
+\end{frame}
+
+% ---- Thank you ------------------------------------------------------------
+\begin{frame}[plain]
+    \vspace*{2em}
+    \begin{center}
+        {\Huge \textbf{Thank you}}\\[1.5em]
+        {\Large Questions?}\\[2.5em]
+        \small
+        Fine \& Gray (1999) \textit{JASA} $\cdot$
+        Aalen \& Johansen (1978) \textit{Scand.\ J.\ Stat.} $\cdot$
+        Sadhwani et al.\ (2021) \textit{J.\ Fin.\ Econometrics}
+    \end{center}
+\end{frame}
+
+\end{document}
