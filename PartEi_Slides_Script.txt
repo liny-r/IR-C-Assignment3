@@ -1,0 +1,56 @@
+Part E(i) — Competing Risks Speaker Script
+==========================================
+
+Slide 1 — Title
+"I'll be walking through Part E(i) — how we apply a competing risks framework, separating prepayment from default."
+
+---
+
+Slide 2 — Competing risks
+"Each bar sums to 100% — prepayment, default, and still-active loans are mutually exclusive fates. This is the competing risks problem: one event permanently forecloses the other, so it is optimal to model them as completing risks."
+
+The 2007 cohort shows the starkest split: 8% defaulted, almost nothing censored. Post-2020 is the opposite extreme — nearly all censored, almost no prepayments.
+
+---
+
+Slide 3 — Duration distributions
+"Observing the distribution of prepayment and default, they have different shapes. Prepayment peaks around 24 months — borrowers exercise the refinancing option quickly when rates drop. Default peaks around 60 months — it's a slow deterioration. So in this section, we model these two processes with two distinct hazard functions with the Aalen–Johansen estimator."
+
+---
+
+Added slide 
+We contrast the Aalen-Johansen estimator to the Kaplan_Meier estimator in partA. Both estimators track how many loans exit at each point in time — the difference is that KM removes defaulted loans from the denominator, treating them as if they simply disappeared. That makes $n_j$ artificially small. AJ keeps all exits in the denominator and multiplies by $\hat{S}(t_j^-)$ — the probability of still being active. As loans leave by either cause, that weight shrinks, so no single cause gets over-credited. The consequence that KM can produce probabilities that sum past 100%; AJ is guaranteed to partition to exactly 1.
+
+
+Slide 4 — AJ estimator
+"The Aalen–Johansen estimator weights each cause-specific increment by the overall survival probability, which ensures the two CIFs and the survival function sum exactly to one at every point in time. You can see this in the numbers: at 10 years, 83.3% prepaid, 2.2% defaulted, and the remaining 14.5% are still active. That partition identity is impossible under Kaplan–Meier."
+
+---
+
+Slide 5 — KM bias
+"Here's why KM fails. It treats defaulted loans as randomly censored, but they're systematically the riskiest loans — the ones least likely to prepay. Dropping them from the denominator inflates every prepayment increment. The bias compounds over time: 0.45 percentage points at 5 years, 1.3 at 10, 2.2 at 20. That 1.3 pp overstatement at the 10-year horizon translates to roughly $1 million of mispriced duration in a $100 million MBS pool."
+
+---
+
+Slide 6 — Stratified CIFs
+"Stratifying confirms two separate stories. FICO separates default by six times — from 1% for high-FICO borrowers to 6% for sub-680. But FICO barely separates prepayment: a high credit score gives you access to refinancing, it doesn't give you the desire. LTV doubles default risk but leaves prepayment curves nearly identical. And vintage dominates everything — GFC loans reach 4% default CIF while post-2013 approaches zero."
+
+---
+
+Slide 7 — Forest plot
+"Fitting separate Cox models for each cause reveals the mechanism. The prepayment model is on the left, default on the right. You can see the sign reversals visually — bars pointing opposite directions for the same covariate. Rate incentive is the clearest example: strong positive effect on prepayment, near zero for default. Max delinquency is the strongest separator overall — large negative for prepayment, large positive for default."
+
+---
+
+Slide 8 — Coefficient table
+"This table makes the sign reversal precise. The naive combined model — middle column — blends both signals and misrepresents both. Max Delinquency is the starkest case: the naive coefficient is -0.123, which hides a +0.543 spread between the two cause-specific models. FICO and LTV both flip sign entirely. A combined model doesn't just lose precision — it gives you the wrong direction for credit variables."
+
+---
+
+Slide 9 — Key Takeaways
+"To summarize: competing risks are not optional when four major covariates flip sign between causes. The KM bias is economically meaningful at long horizons. Vintage era dominates loan-level characteristics as a risk driver. Rate incentive is the cleanest prepayment signal with essentially no default content. And Fine–Gray gives the same answer as cause-specific Cox here because default is only 1.6% — the distinction matters in subprime or crisis pools where the competing event rate is high."
+
+---
+
+Slide 10 — Thank you / Questions
+(No script needed — take questions.)

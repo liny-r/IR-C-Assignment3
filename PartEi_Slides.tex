@@ -33,21 +33,85 @@
     \titlepage
 \end{frame}
 
-% ---- 1. The two-cause problem --------------------------------------------
-\begin{frame}{Two competing fates, two different borrower stories.}
-    \begin{center}
-        \includegraphics[width=0.92\linewidth]{processed/E1_eda_duration}
-    \end{center}
-\end{frame}
-
-% ---- 2. Vintage defines the risk regime ----------------------------------
+% ---- 1. Vintage defines the risk regime ----------------------------------
 \begin{frame}{Vintage era --- not FICO or LTV --- is the dominant risk driver.}
     \begin{center}
         \includegraphics[width=0.92\linewidth]{processed/E1_eda_vintage}
     \end{center}
 \end{frame}
 
-% ---- 3. KM is wrong --------------------------------------------------------
+% ---- 2. The two-cause problem --------------------------------------------
+\begin{frame}{Two competing fates, two different borrower stories.}
+    \begin{center}
+        \includegraphics[width=0.92\linewidth]{processed/E1_eda_duration}
+    \end{center}
+\end{frame}
+
+% ---- 3. KM vs AJ contrast ---------------------------------------------------
+\begin{frame}{Two estimators, two different treatments of competing events.}
+    \begin{columns}[T,onlytextwidth]
+        \column{0.48\textwidth}
+        \begin{block}{Kaplan--Meier}
+        \[
+            \hat{F}^{(k)}_{\mathrm{KM}}(t)
+            = 1 - \prod_{t_j \le t}\!\left(1 - \frac{d_{j}^{(k)}}{n_j^{\mathrm{KM}}}\right)
+        \]
+        \vspace{0.1em}
+        \small
+        \begin{tabular}{@{}ll@{}}
+            $d_j^{(k)}$ & cause-$k$ exits at $t_j$ \\[2pt]
+            $n_j^{\mathrm{KM}}$ & risk set \textcolor{bad}{excluding} competing-event loans \\[2pt]
+        \end{tabular}
+        \end{block}
+
+        \column{0.48\textwidth}
+        \begin{block}{Aalen--Johansen}
+        \[
+            \hat{F}_k(t) = \sum_{t_j \le t} \hat{S}(t_j^{-})\cdot \frac{d_{kj}}{n_j}
+        \]
+        \vspace{0.1em}
+        \small
+        \begin{tabular}{@{}ll@{}}
+            $d_{kj}$        & cause-$k$ exits at $t_j$ \\[2pt]
+            $n_j$           & risk set \textcolor{good}{including} all exits \\[2pt]
+            $\hat{S}(t_j^-)$ & overall survival just before $t_j$ \\[2pt]
+        \end{tabular}
+        \end{block}
+    \end{columns}
+    \vspace{0.6em}
+    \begin{center}
+        \small
+        \textcolor{bad}{KM}: competing exits censored $\Rightarrow$ denominator too small $\Rightarrow$ each increment inflated.\\[3pt]
+        \textcolor{good}{AJ}: $\hat{S}(t_j^-)$ shrinks with every exit $\Rightarrow$ $\hat{F}^{(\mathrm{pre})} + \hat{F}^{(\mathrm{def})} + \hat{S} = 1$ always.
+    \end{center}
+\end{frame}
+
+% ---- 4. AJ CIF formula + result ------------------------------------------
+\begin{frame}{The Aalen--Johansen estimator gives the only coherent probability partition.}
+    \begin{columns}[c,onlytextwidth]
+        \column{0.64\textwidth}
+        \begin{center}
+            \includegraphics[width=\linewidth]{processed/E1_competing_risks_cif}
+        \end{center}
+
+        \column{0.34\textwidth}
+        \begin{center}
+        \vspace{1em}
+        \small
+        \begin{tabular}{lccc}
+            \toprule
+            & Pre & Def & Active \\
+            \midrule
+            5 yr  & 61.4\% & 1.1\% & 37.6\% \\
+            10 yr & 83.3\% & 2.2\% & 14.5\% \\
+            20 yr & 91.8\% & 3.1\% &  5.1\% \\
+            \bottomrule
+        \end{tabular}
+        \end{center}
+    \end{columns}
+\end{frame}
+
+% ---- 4. KM is wrong --------------------------------------------------------
 \begin{frame}{KM overstates prepayment probability because it ignores competing defaults.}
     \begin{center}
         \includegraphics[width=0.82\linewidth]{processed/E1_km_vs_aj_bias}
@@ -67,41 +131,6 @@
     \end{center}
 \end{frame}
 
-% ---- 4. AJ CIF formula + result ------------------------------------------
-\begin{frame}{The Aalen--Johansen estimator gives the only coherent probability partition.}
-    \begin{columns}[T,onlytextwidth]
-        \column{0.64\textwidth}
-        \begin{center}
-            \includegraphics[width=\linewidth]{processed/E1_competing_risks_cif}
-        \end{center}
-
-        \column{0.34\textwidth}
-        \vspace{1em}
-        \[
-            \hat{F}_k(t) = \sum_{t_j \le t} \hat{S}(t_j^{-})\cdot \frac{d_{kj}}{n_j}
-        \]
-        \[
-            \textstyle\sum_k \hat{F}_k + \hat{S} = 1
-        \]
-        \vspace{0.4em}
-        \small
-        \begin{tabular}{lcc}
-            \toprule
-            & Pre & Def \\
-            \midrule
-            5 yr  & 61.4\% & 1.1\% \\
-            10 yr & 83.3\% & 2.2\% \\
-            20 yr & 91.8\% & 3.1\% \\
-            \bottomrule
-        \end{tabular}
-        \vspace{0.4em}
-
-        \normalsize
-        37:1 ratio at 10 yr.\\
-        Burnout after month 40.
-    \end{columns}
-\end{frame}
-
 % ---- 5. Stratified CIF ---------------------------------------------------
 \begin{frame}{FICO separates default 6$\times$; LTV separates default 2$\times$ --- neither separates prepayment.}
     \begin{center}
@@ -118,40 +147,33 @@
 
 % ---- 7. Opposite signs table ---------------------------------------------
 \begin{frame}{Four covariates flip sign --- a combined model cancels both signals.}
-    \vspace{0.5em}
+    \vspace{0.2em}
     \begin{center}
-    \begin{tabular}{lccc}
+    \small
+    \begin{tabular}{lrrrp{2.6cm}}
         \toprule
-        \textbf{Covariate} & \textbf{Prepay $\hat\beta$} & \textbf{Default $\hat\beta$} & \\
+        \textbf{Covariate} & \textbf{Naive $\hat\beta$} & \textbf{Prepay $\hat\beta$} & \textbf{Default $\hat\beta$} & \\
         \midrule
-        Rate incentive   & \textcolor{good}{$+0.256$} & $+0.021$                    & (pure prepay signal) \\
-        FICO             & \textcolor{good}{$+0.010$} & \textcolor{bad}{$-0.047$}   & \textbf{opposite} \\
-        LTV              & \textcolor{bad}{$-0.011$}  & \textcolor{good}{$+0.041$}  & \textbf{opposite} \\
-        Max Delinquency  & \textcolor{bad}{$-0.245$}  & \textcolor{good}{$+0.298$}  & \textbf{opposite} \\
-        Investment prop. & \textcolor{bad}{$-0.297$}  & \textcolor{good}{$+0.270$}  & \textbf{opposite} \\
+        Rate incentive   & $+0.253$ & \textcolor{good}{$+0.256$} & $+0.021$                   & (pure prepay) \\
+        UPB              & $+0.161$ & \textcolor{good}{$+0.161$} & $-0.010$                   & (pure prepay) \\
+        \midrule
+        FICO             & $+0.016$ & \textcolor{good}{$+0.010$} & \textcolor{bad}{$-0.047$}  & \textbf{opposite} \\
+        LTV              & $-0.007$ & \textcolor{bad}{$-0.011$}  & \textcolor{good}{$+0.041$} & \textbf{opposite} \\
+        Max Delinquency  & $-0.123$ & \textcolor{bad}{$-0.245$}  & \textcolor{good}{$+0.298$} & \textbf{opposite} \\
+        Ever 90+ DQ      & $-0.035$ & \textcolor{bad}{$-0.071$}  & \textcolor{good}{$+0.270$} & \textbf{opposite} \\
+        Investment prop. & $-0.289$ & \textcolor{bad}{$-0.297$}  & $+0.027$                   & diverge \\
         \bottomrule
     \end{tabular}
     \end{center}
-    \vspace{0.5em}
+    \vspace{0.3em}
     \begin{center}
-        \small $e^{0.256} \approx 1.29$: a 1-SD rise in rate spread raises prepayment hazard 29\%.
-        \quad $e^{0.298} \approx 1.35$: a 1-SD rise in max delinquency raises default hazard 35\%.
+        \small
+        Naive Max Delinquency ($-0.123$) hides a $+0.543$ cause-specific spread.
+        \quad $e^{0.256}\approx1.29$ prepay; \; $e^{0.298}\approx1.35$ default.
     \end{center}
 \end{frame}
 
-% ---- 8. Fine-Gray --------------------------------------------------------
-\begin{frame}{Fine--Gray confirms cause-specific Cox; they differ only in high-default pools.}
-    \begin{center}
-        \includegraphics[height=0.68\textheight,keepaspectratio]{processed/E1_fg_comparison}
-    \end{center}
-    \vspace{-0.2em}
-    \begin{center}
-        \small Max coefficient difference: $|\Delta| = 0.004$.
-        \quad When $F_{\mathrm{def}}(t) \approx 0$: $\;\tilde{h}_1(t) \approx h_1(t)$.
-    \end{center}
-\end{frame}
-
-% ---- 9. Key Takeaways ----------------------------------------------------
+% ---- 8. Key Takeaways ----------------------------------------------------
 \begin{frame}{Key Takeaways}
     \begin{enumerate}\itemsep5pt
         \item \textbf{Competing risks are not optional}: 4 covariates flip sign between causes.
