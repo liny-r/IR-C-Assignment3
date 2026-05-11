@@ -35,56 +35,45 @@
 
 % ---- 1. Setup ------------------------------------------------------------
 \begin{frame}{TV Cox is the only model with a direct rate channel for scenario analysis.}
-    \begin{columns}[T,onlytextwidth]
-        \column{0.50\textwidth}
-        \begin{block}{Why TV Cox (E(ii)) is the primary model}
-        \small
-        \texttt{rate\_incentive} $= r_{\text{orig}} - r_{\text{market}}(t)$ is a
-        \textbf{direct time-varying covariate}.\\[4pt]
-        A $\Delta r$ bp market rate shock immediately shifts the incentive by
-        $-\Delta r / 100$\,pp, giving an analytic hazard response:
-        \[
-            \Delta\log h(t) = \hat\beta_{\text{ri}} \times \frac{-\Delta r}{100}
-        \]
-        Output: calibrated $S(t)$, CPR, WAL, and price --- all in realistic ranges.
-        \end{block}
-
-        \column{0.46\textwidth}
-        \begin{alertblock}{Why static DeepCox cannot do this}
-        \small
-        Static models (Part D) use \texttt{OriginalInterestRate} --- the \textbf{coupon},
-        not the market rate.\\[4pt]
-        Shocking this field gives the \textbf{wrong economic direction}:
-        a rate \emph{cut} reduces the coupon $\Rightarrow$ model predicts \emph{less} prepayment
-        (opposite to reality).\\[4pt]
-        Static models require architectural changes before scenario analysis is valid.
-        \end{alertblock}
-    \end{columns}
-    \vspace{0.5em}
+    \begin{block}{Why TV Cox (E(ii)) is the primary model}
+    \small
+    \texttt{rate\_incentive} $= r_{\text{orig}} - r_{\text{market}}(t)$ is a
+    \textbf{direct time-varying covariate}.\\[6pt]
+    A $\Delta r$\,bp market rate shock immediately shifts the incentive by $-\Delta r/100$\,pp,
+    giving an analytic hazard response:
+    \[
+        \Delta\log h(t) = \hat\beta_{\text{ri}} \times \frac{-\Delta r}{100},
+        \qquad \hat\beta_{\text{ri}} = 0.041 \text{ (HR} = 1.042 \text{ per 100\,bp)}
+    \]
+    The calibrated baseline hazard $\hat{H}_0(t)$ produces realistic $S(t)$, CPR, WAL,
+    and price --- no approximation needed.\\[6pt]
+   
+    \end{block}
+    \vspace{0.8em}
     \begin{center}
         \small
-        Representative loan: \$300K, 6.5\% coupon, baseline market rate 7.0\%.\\
+        Representative loan: \$300K, 5.0\% coupon, baseline market rate 5.3\% (median, 1999--2025).\\
         Scenarios: $\pm$100, $\pm$200, $\pm$300\,bp --- covering the BCBS standard stress range.
     \end{center}
 \end{frame}
 
 % ---- 2. Shock sensitivity ------------------------------------------------
-\begin{frame}{TV Cox tracks the analytic formula exactly; DeepCox sign is reversed.}
+\begin{frame}{TV Cox tracks the analytic formula exactly across all seven shock levels.}
     \begin{center}
-        \includegraphics[width=0.88\linewidth]{processed/Eiv_shock_comparison}
+        \includegraphics[width=0.64\linewidth]{processed/Eiv_shock_comparison}
     \end{center}
     \vspace{-0.4em}
     \begin{center}
         \small
-        \textcolor{accent}{Left}: TV Cox fitted $\Delta\log h$ overlaps the analytic line perfectly
-        ($\hat\beta_{\text{ri}} = 0.041$, HR $= 1.042$ per 100\,bp).\\
-        \textcolor{bad}{Right}: DeepCox $\Delta\log h$ is \emph{opposite sign} ---
-        a 300\,bp cut produces $-1.05$ (less prepayment), not more.
+        Fitted $\Delta\log h$ overlaps the analytic formula $\hat\beta_{\text{ri}} \times (-\Delta r/100)$
+        perfectly at every scenario.\\
+        $\hat\beta_{\text{ri}} = 0.041$, HR $= 1.042$ per 100\,bp.
+        A 300\,bp rate cut raises log-hazard by $+0.123$; a 300\,bp hike lowers it by $-0.123$.
     \end{center}
 \end{frame}
 
 % ---- 3. Survival curves --------------------------------------------------
-\begin{frame}{Rate scenarios shift survival by 6.7\,pp and median prepayment by 11 months.}
+\begin{frame}{Rate scenarios shift survival by 6.6\,pp and median prepayment by 10 months.}
     \begin{columns}[c,onlytextwidth]
         \column{0.62\textwidth}
         \begin{center}
@@ -97,25 +86,25 @@
             \toprule
             Scenario & 10-yr & Med.~mo. \\
             \midrule
-            $-300$\,bp & 10.4\% & 41 \\
-            $-200$\,bp & 11.4\% & 43 \\
-            $-100$\,bp & 12.5\% & 45 \\
-            Baseline   & 13.5\% & 46 \\
-            $+100$\,bp & 14.7\% & 48 \\
-            $+200$\,bp & 15.8\% & 50 \\
-            $+300$\,bp & 17.1\% & 52 \\
+            $-300$\,bp & 10.2\% & 41 \\
+            $-200$\,bp & 11.2\% & 43 \\
+            $-100$\,bp & 12.2\% & 45 \\
+            Baseline   & 13.3\% & 46 \\
+            $+100$\,bp & 14.4\% & 48 \\
+            $+200$\,bp & 15.6\% & 50 \\
+            $+300$\,bp & 16.8\% & 51 \\
             \bottomrule
         \end{tabular}
         \vspace{0.5em}
 
         \small Curves monotonically ordered.\\
-        $\pm300$\,bp: 6.7\,pp survival range,\\
-        11-month shift in median prepay.
+        $\pm300$\,bp: 6.6\,pp survival range,\\
+        10-month shift in median prepay.
     \end{columns}
 \end{frame}
 
 % ---- 4. S-curve + contour ------------------------------------------------
-\begin{frame}{The S-curve is smooth; FICO gates refi access, LTV caps the upside.}
+\begin{frame}{CPR response is convex (log-linear model); FICO and LTV near-zero in TV Cox fit.}
     \begin{columns}[c,onlytextwidth]
         \column{0.50\textwidth}
         \begin{center}
@@ -125,8 +114,8 @@
         \begin{center}
             \small
             CPR: 12.6\% at $-300$\,bp $\to$ 16.5\% at $+400$\,bp.\\
-            Flat slope reflects compressed $\hat\beta_{\text{ri}} = 0.041$\\
-            (penalizer + 500K-row subsample).
+            Log-linear hazard $\Rightarrow$ convex CPR, not S-shaped.\\
+            Flat range reflects compressed $\hat\beta_{\text{ri}} = 0.041$.
         \end{center}
 
         \column{0.48\textwidth}
@@ -136,15 +125,16 @@
         \vspace{-0.3em}
         \begin{center}
             \small
-            FICO $>720$: credit access enables refinancing.\\
-            LTV $>90$: equity constraint flattens CPR
-            regardless of incentive.
+            FICO ($\hat\beta\!\approx\!0$, $p{=}0.99$) and LTV ($\hat\beta\!\approx\!0$, $p{=}0.76$)
+            are non-significant in the 500K subsample.\\
+            Contours are horizontal bands --- rate incentive\\
+            drives all CPR variation in this fit.
         \end{center}
     \end{columns}
 \end{frame}
 
 % ---- 5. MBS cash flows ---------------------------------------------------
-\begin{frame}{WAL range 0.57\,yr; price range \$17.70 --- negative convexity confirmed.}
+\begin{frame}{WAL range 0.58\,yr; price range \$18.55 --- negative convexity confirmed.}
     \begin{columns}[c,onlytextwidth]
         \column{0.60\textwidth}
         \begin{center}
@@ -157,20 +147,20 @@
             \toprule
             Scenario & WAL & Price\,(\$) \\
             \midrule
-            $-300$\,bp & 3.21 & 107.35 \\
-            $-200$\,bp & 3.30 & 104.42 \\
-            $-100$\,bp & 3.39 & 101.48 \\
-            Baseline   & 3.48 & \phantom{0}98.52 \\
-            $+100$\,bp & 3.58 & \phantom{0}95.56 \\
-            $+200$\,bp & 3.68 & \phantom{0}92.60 \\
-            $+300$\,bp & 3.78 & \phantom{0}89.65 \\
+            $-300$\,bp & 3.25 & 108.32 \\
+            $-200$\,bp & 3.34 & 105.26 \\
+            $-100$\,bp & 3.43 & 102.17 \\
+            Baseline   & 3.53 & \phantom{0}99.07 \\
+            $+100$\,bp & 3.63 & \phantom{0}95.96 \\
+            $+200$\,bp & 3.73 & \phantom{0}92.86 \\
+            $+300$\,bp & 3.83 & \phantom{0}89.77 \\
             \bottomrule
         \end{tabular}
         \vspace{0.5em}
 
         \small MC: 200 paths, $\sigma{=}25$\,bp.\\
-        Base $<$ par: rate $>$ coupon.\\[4pt]
-        $-300$\,bp gain (\$8.83) $<$ $+300$\,bp loss (\$8.87):\\
+        Base $\approx$ par: rate 5.3\% $\approx$ coupon 5.0\%.\\[4pt]
+        $-300$\,bp gain (\$9.25) $<$ $+300$\,bp loss (\$9.30):\\
         \textbf{negative convexity confirmed}.
     \end{columns}
 \end{frame}
@@ -188,11 +178,13 @@
               WAL range 0.57\,yr vs.\ 2--10\,yr for agency MBS.
               Root cause: 500K-row subsample (0.7\% of panel) + Ridge penalizer.
               Lower penalizer and larger sample are the two highest-leverage fixes.
-        \item \textbf{Negative convexity is captured}: price upside (\$8.83) $<$
-              downside (\$8.87) at $\pm$300\,bp, consistent with prepayment curtailing
+        \item \textbf{Negative convexity is captured}: price upside (\$9.25) $<$
+              downside (\$9.30) at $\pm$300\,bp, consistent with prepayment curtailing
               price appreciation.
-        \item \textbf{FICO gates access; LTV caps the ceiling}:
-              2D contour confirms both constraints from E(i) and E(ii) coefficient signs.
+        \item \textbf{FICO and LTV are non-significant in this TV Cox fit}:
+              near-zero coefficients ($p>0.75$) in the 500K subsample; contours are flat
+              in those dimensions. Effects visible in E(i) require more data to surface
+              in the time-varying specification.
     \end{enumerate}
 \end{frame}
 

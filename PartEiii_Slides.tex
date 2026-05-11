@@ -58,44 +58,31 @@
         \end{itemize}
         \end{block}
     \end{columns}
-    \vspace{0.4em}
-    \begin{center}
-        \small
-        A 2007-vintage subprime loan and a 2020-vintage prime loan may have
-        identical origination snapshots but \textcolor{bad}{opposite} trajectory histories ---
-        only a sequence model distinguishes them.
-    \end{center}
 \end{frame}
 
 % ---- 2b. Architecture rationale ------------------------------------------
-\begin{frame}{Three design decisions: why this architecture over the alternatives.}
+\begin{frame}{Why this architecture? Three design decisions.}
     \begin{columns}[T,onlytextwidth]
-        \column{0.48\textwidth}
-        \begin{alertblock}{Alternatives considered}
+        \column{0.46\textwidth}
+        \begin{alertblock}{Alternatives rejected}
         \small
-        \begin{tabular}{@{}p{1.6cm}p{3.8cm}@{}}
-            \textbf{LSTM} & Vanishing gradients at $T{=}120$; attends only to adjacent past month; harder to interpret \\[4pt]
-            \textbf{Single-context head} & Compresses full history to one vector; head has no time index, produces near-constant hazard curve; gradient reaches only the last hidden state \\[4pt]
-            \textbf{Two separate models} & Violates independent censoring: defaulted loans are the riskiest borrowers, not random exits; loses shared macro signal \\
-        \end{tabular}
+        \begin{itemize}\itemsep4pt
+            \item \textbf{LSTM} --- vanishing gradients at $T{=}120$; attends only to adjacent months; hard to interpret
+            \item \textbf{Single-context head} --- no time index in head; near-constant hazard curve; gradient flows only through last hidden state
+            \item \textbf{Two separate models} --- violates independent censoring (defaulted loans are riskiest borrowers, not random exits); loses shared macro signal
+        \end{itemize}
         \end{alertblock}
 
-        \column{0.48\textwidth}
+        \column{0.50\textwidth}
         \begin{block}{Why this combination}
         \small
-        \begin{tabular}{@{}p{1.6cm}p{3.8cm}@{}}
-            \textbf{Causal Transformer} & Reaches any past month in one attention step; gradient flows through every position; attention weights interpretable \\[4pt]
-            \textbf{Per-timestep head} & $\lambda(t) = \text{head}(h_t)$: hazard conditioned on full causal history $\mathbf{x}_1\!\dots\mathbf{x}_t$; each month independently trained \\[4pt]
-            \textbf{Joint encoder} & Shared representation learns that same macro shock raises default and lowers prepayment; chain product enforces $\text{CIF}_1+\text{CIF}_2+S=1$ \\
-        \end{tabular}
+        \begin{itemize}\itemsep4pt
+            \item \textbf{Causal Transformer} --- reaches any past month in one attention step; gradient flows through every position; weights are interpretable
+            \item \textbf{Per-timestep head} --- $\lambda(t){=}\text{head}(h_t)$: hazard conditioned on full causal history $\mathbf{x}_1\!\dots\mathbf{x}_t$; every month trained independently
+            \item \textbf{Joint encoder} --- shared representation captures that the same macro shock raises default and suppresses prepayment; chain product enforces $\text{CIF}_1{+}\text{CIF}_2{+}S{=}1$
+        \end{itemize}
         \end{block}
     \end{columns}
-    \vspace{0.3em}
-    \begin{center}
-        \small
-        Discrete-time hazards on the monthly grid eliminate tied-event problems and allow
-        exact CIF computation without numerical integration.
-    \end{center}
 \end{frame}
 
 % ---- 3. Architecture -----------------------------------------------------
@@ -105,25 +92,25 @@
         \begin{block}{Architecture}
         \small
         \begin{tabular}{@{}ll@{}}
-            \textbf{Input}  & $(B,\, T_{\max}{=}120,\, D{=}13)$ padded sequences \\[1pt]
-            \textbf{Proj.}  & Linear $D \to d_{\text{model}}{=}64$ \\[1pt]
-            \textbf{PE}     & Sinusoidal positional encoding on loan age \\[1pt]
-            \textbf{Enc.}   & $\times 2$ pre-norm layers, 4 heads, causal mask \\[1pt]
-            \textbf{Head 1} & FC $64\!\to\!64\!\to\!1$ per $h_t$, Sigmoid $\Rightarrow \lambda_1(t)$ \\[1pt]
-            \textbf{Head 2} & FC $64\!\to\!64\!\to\!1$ per $h_t$, Sigmoid $\Rightarrow \lambda_2(t)$ \\[1pt]
+            \textbf{Input}  & $(B,\, T_{\max}{=}120,\, D{=}13)$ padded sequences \\
+            \textbf{Proj.}  & Linear $D \to d_{\text{model}}{=}64$ \\
+            \textbf{PE}     & Sinusoidal positional encoding on loan age \\
+            \textbf{Enc.}   & $\times 2$ pre-norm layers, 4 heads, causal mask \\
+            \textbf{Head 1} & FC $64\!\to\!64\!\to\!1$ per $h_t$, Sigmoid $\Rightarrow \lambda_1(t)$ \\
+            \textbf{Head 2} & FC $64\!\to\!64\!\to\!1$ per $h_t$, Sigmoid $\Rightarrow \lambda_2(t)$ \\
             \textbf{CIFs}   & Competing-risk chain product \\
         \end{tabular}
         \end{block}
 
-        \vspace{0.15em}
+        \vspace{0.1em}
         \begin{block}{Competing-risk CIFs}
-        \small
-        \vspace{-0.3em}
-        \[
-            \text{CIF}_k(t) = \textstyle\sum_{s=1}^{t} \lambda_k(s)\cdot S(s-1), \quad
-            S(t) = \textstyle\prod_{s=1}^{t}(1-\lambda_1(s))(1-\lambda_2(s))
-        \]
-        \vspace{-0.6em}
+        \footnotesize
+        \vspace{-0.9em}
+        \begin{align*}
+            \text{CIF}_k(t) &= \textstyle\sum_{s=1}^{t} \lambda_k(s)\cdot S(s-1) \\[-3pt]
+            S(t) &= \textstyle\prod_{s=1}^{t}(1-\lambda_1(s))(1-\lambda_2(s))
+        \end{align*}
+        \vspace{-0.9em}
         Guarantees $\text{CIF}_1 + \text{CIF}_2 + S = 1$ at every $t$.
         \end{block}
 
@@ -137,12 +124,14 @@
         \]
         \vspace{-0.2em}
         \textbf{NLL}: discrete-time cause-specific likelihood\\[2pt]
-        \textbf{Ranking loss}: soft pairwise concordance (DeepHit-style)\\[4pt]
+        \textbf{Ranking}: soft pairwise concordance (DeepHit-style)\\[4pt]
         \begin{tabular}{@{}ll@{}}
-            Params  & 76,290 \\
-            Data    & 100K loans, 4.5M rows \\
-            Epochs  & 41 (early stop ep.\,29, lr$=3\!\times\!10^{-4}$) \\
-            Loss    & $11.30 \to 11.28$ (rank $1.97\to1.84$) \\
+            Params & 76,290 \\[1pt]
+            Data   & 101K loans, 4.5M rows \\[1pt]
+            Epochs & 41 \;(best ep.\,29) \\[1pt]
+            LR     & $3\!\times\!10^{-4}$, cosine \\[1pt]
+            Loss   & $11.30 \to 11.28$ \\[1pt]
+            Rank   & $1.97 \to 1.84$ \\
         \end{tabular}
         \end{block}
     \end{columns}
@@ -152,20 +141,6 @@
 \begin{frame}{NLL collapses to $\lambda\!\approx\!0$; ranking loss drives AUC improvement.}
     \begin{center}
         \includegraphics[width=0.92\linewidth]{processed/Eiii_training_curves}
-    \end{center}
-\end{frame}
-
-% ---- 4. CIF archetypes ---------------------------------------------------
-\begin{frame}{Model correctly separates prime and subprime CIF trajectories.}
-    \begin{center}
-        \includegraphics[width=0.90\linewidth]{processed/Eiii_cif_archetypes}
-    \end{center}
-    \vspace{-0.4em}
-    \begin{center}
-        \small
-        Macro scenario: Jan 2005 -- Dec 2015 (covers a full rate cycle).
-        Subprime default CIF ($\sim$20\%) separates cleanly from prime ($<$2\%) ---
-        no explicit pricing inputs; the model learns from covariate history.
     \end{center}
 \end{frame}
 
@@ -191,91 +166,68 @@
     \vspace{-0.4em}
     \begin{center}
         \small
-        \texttt{rate\_incentive} drives early months; \texttt{ELTV} rises as equity accumulates
-        and gates the refinancing option.\\
-        Cox assigns one coefficient per feature with no lifecycle dimension ---
-        this view is only possible with a sequence model.
-    \end{center}
-\end{frame}
-
-% ---- 7. Attention heatmaps -----------------------------------------------
-\begin{frame}{Attention heads specialise: early months capture origination quality.}
-    \begin{center}
-        \includegraphics[width=0.90\linewidth]{processed/Eiii_attention_heatmaps}
-    \end{center}
-    \vspace{-0.3em}
-    \begin{center}
-        \small
-        Each row = one attention head at the last observed month.
-        Heads H1/H2 concentrate on early months (credit quality at origination);
-        H3/H4 attend to recent months (current rate incentive).
-        Causal mask prevents position $t$ from attending to $t+1$.
+        \texttt{rate\_incentive} dominates early months; \texttt{Current LTV} rises as equity
+        accumulates and gates the refi option. \texttt{Mortgage rate} is dark throughout ---
+        the model learns the incentive \emph{spread} matters, not the rate level.
     \end{center}
 \end{frame}
 
 % ---- 7. Model performance ------------------------------------------------
 \begin{frame}{Default AUC matches DeepCox; prepayment underperforms due to NLL collapse.}
-    \begin{columns}[T,onlytextwidth]
-        \column{0.56\textwidth}
-        \begin{center}
-            \small\textbf{Prepayment CIF$_1$}\\[3pt]
-            \begin{tabular}{lcccc}
-                \toprule
-                \textbf{Model} & \textbf{T=12} & \textbf{T=24} & \textbf{T=36} & \textbf{T=60} \\
-                \midrule
-                Part D DeepCox\textsuperscript{$\dagger$} & 0.684 & 0.701 & 0.721 & 0.729 \\
-                DeepHit (20K)\textsuperscript{$\ddagger$} & 0.641 & 0.622 & 0.572 & 0.515 \\
-                DeepHit (344)\textsuperscript{$\S$}       & 0.677 & 0.647 & 0.565 & 0.334 \\
-                \bottomrule
-            \end{tabular}
-            \vspace{4pt}\\
-            \small\textbf{Default CIF$_2$}\\[3pt]
-            \begin{tabular}{lcccc}
-                \toprule
-                \textbf{Model} & \textbf{T=12} & \textbf{T=24} & \textbf{T=36} & \textbf{T=60} \\
-                \midrule
-                Part D DeepCox\textsuperscript{$\dagger$}  & 0.684 & 0.701 & 0.721 & 0.729 \\
-                DeepHit (20K)\textsuperscript{$\ddagger$}  & \textbf{0.687} & \textbf{0.708} & \textbf{0.707} & \textbf{0.726} \\
-                \bottomrule
-            \end{tabular}
-            \vspace{3pt}\\
-            \tiny $^\dagger$ 597K canonical · $^\ddagger$ 20K oversampled hold-out · $^\S$ 344 canonical-vintage loans
-        \end{center}
+    \begin{center}
+        \small\textbf{Prepayment CIF$_1$ — AUC at fixed horizons}\\[4pt]
+        \begin{tabular}{lcccc}
+            \toprule
+            \textbf{Model} & \textbf{T=12} & \textbf{T=24} & \textbf{T=36} & \textbf{T=60} \\
+            \midrule
+            Part D DeepCox$^\dagger$ & 0.684 & 0.701 & 0.721 & 0.729 \\
+            DeepHit (20K)$^\ddagger$ & 0.641 & 0.622 & 0.572 & 0.515 \\
+            DeepHit (344)$^\S$       & 0.677 & 0.647 & 0.565 & 0.334 \\
+            \bottomrule
+        \end{tabular}
 
-        \column{0.40\textwidth}
-        \begin{block}{Key result}
+        \vspace{8pt}
+        \small\textbf{Default CIF$_2$ — AUC at fixed horizons}\\[4pt]
+        \begin{tabular}{lcccc}
+            \toprule
+            \textbf{Model} & \textbf{T=12} & \textbf{T=24} & \textbf{T=36} & \textbf{T=60} \\
+            \midrule
+            Part D DeepCox$^\dagger$  & 0.684 & 0.701 & 0.721 & 0.729 \\
+            DeepHit (20K)$^\ddagger$  & \textbf{0.687} & \textbf{0.708} & \textbf{0.707} & \textbf{0.726} \\
+            \bottomrule
+        \end{tabular}
+        \vspace{3pt}\\
+        \tiny $^\dagger$\,597K canonical\enspace
+               $^\ddagger$\,20K hold-out\enspace
+               $^\S$\,344 canonical loans
+    \end{center}
+
+    \vfill
+    \begin{center}
         \small
-        Default AUC \textbf{matches DeepCox} at every horizon with 6$\times$ fewer training loans.
-        Temporal covariate history compensates for data volume.
-        \end{block}
-        \begin{alertblock}{NLL calibration}
-        \small
-        $\lambda\!\to\!0$ collapse freezes NLL at $\approx\!10.91$.\\
-        Brier scores: 0.068, 0.157, 0.221, 0.304.\\
-        Discrimination (AUC) is preserved;\\
-        absolute calibration is not.
-        \end{alertblock}
-    \end{columns}
+        Default AUC \textbf{matches DeepCox} at every horizon with \textbf{6$\times$ fewer} training loans ---
+        temporal covariate history compensates for data volume.
+    \end{center}
 \end{frame}
 
 % ---- 8. Key Takeaways ----------------------------------------------------
 \begin{frame}{Key Takeaways}
-    \begin{enumerate}\itemsep5pt
-        \item \textbf{Sequence structure is learnable}: the Transformer successfully
-              exploits the full monthly covariate path --- burnout and rate cycles
-              are encoded without feature engineering.
-        \item \textbf{Competing risks are modelled end-to-end}: shared encoder, two heads,
-              guaranteed probability partition at every month.
-        \item \textbf{Gradient sensitivity replicates Cox findings}:
-              \texttt{rate\_incentive} + \texttt{ELTV} drive prepayment;
-              \texttt{FICO} + \texttt{unemployment} drive default.
-        \item \textbf{Attention is interpretable}: different heads specialise on
-              origination quality vs.\ current rate environment.
-        \item \textbf{Default AUC matches DeepCox}: CIF$_2$ AUC 0.687--0.726 vs.\
-              DeepCox 0.684--0.729, using 6$\times$ fewer training loans.
-        \item \textbf{NLL collapse is a known limitation}: survival gradient dominates
-              at 1.6\% monthly default rate; fixing requires focal-loss upweighting.
-              Discrimination (AUC) is preserved; Brier scores are elevated (0.07--0.30).
+    \begin{enumerate}\itemsep10pt
+        \item \textbf{Default AUC roughly matches DeepCox}\\
+              Using 6$\times$ fewer training loans.
+              Temporal covariate history compensates for data volume.
+
+        \item \textbf{Gradient sensitivity independently replicates Cox findings}\\
+              \texttt{rate\_incentive} + \texttt{Current LTV} drive prepayment;
+              \texttt{FICO} + \texttt{unemployment} drive default --- recovered from data, not imposed.
+
+        \item \textbf{Feature importance shifts across the loan lifecycle}\\
+              \texttt{rate\_incentive} dominates early months; \texttt{Current LTV} rises as equity
+              accumulates. This time-resolved view is unique to sequence models.
+
+        \item \textbf{Known limitation: NLL collapse at 1.6\% monthly default rate}\\
+              Survival gradient overwhelms event gradient in epoch 1; AUC is preserved but
+              Brier scores are elevated (0.07--0.30). Fix: focal-loss upweighting.
     \end{enumerate}
 \end{frame}
 

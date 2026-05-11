@@ -205,8 +205,10 @@ Dynamic features (time-varying) consistently outrank static features for prepaym
     \includegraphics[width=\linewidth]{processed/Eiii_sensitivity_over_time}
     \caption{Mean $|\partial\text{CIF}_1/\partial\mathbf{x}|$ at month 60, resolved by loan age.
       Brighter = higher sensitivity at that loan-age month.
-      \texttt{rate\_incentive} is most influential in early months (origination-era incentive),
-      then \texttt{ELTV} rises as equity accumulates and gates the refi option.
+      \texttt{rate\_incentive} dominates early months (origination-era refinancing incentive),
+      then \texttt{Current LTV} rises as equity accumulates and gates the refi option.
+      \texttt{Mortgage rate} (the raw level) is dark throughout --- the model correctly
+      learns that the incentive \emph{spread} matters, not the rate level in isolation.
       Static features (FICO, UPB) show low but steady importance throughout.
       This time-resolved view is unique to sequence models --- Cox assigns a single
       coefficient per feature with no lifecycle dimension.}

@@ -71,7 +71,7 @@ economically meaningful.
 channel). Rate shocks must be applied to \texttt{OriginalInterestRate} as a \emph{counterfactual},
 illustrating the fundamental limitation of static models for scenario analysis.
 
-\textbf{Representative loan}: \$300K UPB, 6.5\% coupon, baseline market rate 7.0\%.
+\textbf{Representative loan}: \$300K UPB, 5.0\% coupon, baseline market rate 5.3\% (median over the 1999--2025 sample; rate\_incentive $= -0.3\%$, 30\,bp OTM at baseline).
 
 % =================================================================
 \section{Rate Shock Sensitivity}
@@ -81,10 +81,10 @@ illustrating the fundamental limitation of static models for scenario analysis.
     \centering
     \includegraphics[width=\linewidth]{processed/Eiv_shock_comparison}
     \caption{$\Delta\log h$ vs.\ baseline at month 36 under seven rate scenarios.
-      Left: TV Cox (blue dots) overlaps the analytic formula (grey dashes) exactly.
-      Right: DeepCox produces the opposite sign --- a 300\,bp rate cut lowers
-      the predicted hazard by 1.05, because the model interprets a lower
-      \texttt{OriginalInterestRate} as less refinancing incentive relative to coupon.}
+      TV Cox fitted values (blue dots) overlap the analytic formula
+      $\hat\beta_{\text{ri}} \times (-\Delta r/100)$ (grey dashes) exactly at all shock levels.
+      $\hat\beta_{\text{ri}} = 0.041$; a 300\,bp cut raises log-hazard by $+0.123$,
+      a 300\,bp hike lowers it by $-0.123$.}
 \end{figure}
 
 \begin{center}
@@ -104,9 +104,9 @@ $+300$\,bp & $-0.123$ & $-0.123$ & $+0.293$ \\
 \end{tabular}
 \end{center}
 
-TV Cox fitted values match the analytic formula exactly at all seven shock levels.
-The DeepCox sign reversal confirms that static models cannot be used for direct rate scenario
-analysis without rearchitecting to include a market-rate input.
+TV Cox fitted values match the analytic formula exactly at all seven shock levels,
+confirming that the model responds to rate shocks through a transparent, auditable
+mechanism suitable for regulatory stress testing.
 
 % =================================================================
 \section{Survival Curves}
@@ -120,11 +120,11 @@ analysis without rearchitecting to include a market-rate input.
       $\Rightarrow$ faster prepayment $\Rightarrow$ lower survival.}
 \end{figure}
 
-The $\pm 300$\,bp range shifts the 10-year survival probability by 6.7\,pp (10.4\% to 17.1\%)
-and the median prepayment month by 11 months (month 41 to 52).
+The $\pm 300$\,bp range shifts the 10-year survival probability by 6.6\,pp (10.2\% to 16.8\%)
+and the median prepayment month by 10 months (month 41 to 51).
 
 % =================================================================
-\section{Prepayment S-Curve and 2D Interaction Surfaces}
+\section{CPR Response Curve and 2D Sensitivity Surfaces}
 % =================================================================
 
 \begin{figure}[h]
@@ -133,7 +133,8 @@ and the median prepayment month by 11 months (month 41 to 52).
         \includegraphics[width=\linewidth]{processed/Eiv_scurve}
         \caption{Annual CPR vs.\ rate incentive at loan age 36 months
           (FICO=742, LTV=74). CPR ranges from 12.6\% at $-300$\,bp to 16.5\%
-          at $+400$\,bp. The flat slope reflects a compressed
+          at $+400$\,bp. The response is \emph{convex} (log-linear hazard), not S-shaped;
+          a true S-curve requires a nonlinear model. The compressed range reflects
           $\hat\beta_{\text{ri}} = 0.041$ from the Ridge penalizer and 500K-row subsample.}
     \end{subfigure}
     \hfill
@@ -141,15 +142,19 @@ and the median prepayment month by 11 months (month 41 to 52).
         \includegraphics[width=\linewidth]{processed/Eiv_contour}
         \caption{Annual CPR on the (rate incentive $\times$ FICO) and
           (rate incentive $\times$ LTV) surfaces at loan age 36 months.
-          FICO $> 720$ enables refi access; LTV $> 90$ caps CPR regardless
-          of incentive (negative equity prevents refinancing).}
+          Fitted TV Cox coefficients: FICO $\hat\beta\approx0$ ($p=0.99$),
+          LTV $\hat\beta\approx0$ ($p=0.76$) --- both non-significant in the 500K subsample.
+          Contour bands are nearly horizontal in the FICO and LTV dimensions;
+          rate incentive drives all CPR variation in this specification.}
     \end{subfigure}
 \end{figure}
 
-The 2D surfaces confirm the interaction structure from E(i) and E(ii):
-credit access (FICO) gates the ability to refinance, while equity position (LTV) caps
-the ceiling regardless of incentive. A high-FICO borrower with LTV $> 95\%$ cannot
-refinance even when the rate incentive is strongly positive.
+The fitted TV Cox coefficients for FICO and LTV are near zero and non-significant
+($p>0.75$), reflecting the limitations of the 500K-row subsample and Ridge penalisation.
+The 2D contour bands are essentially horizontal in the FICO and LTV directions --- CPR
+varies only with rate incentive in this fitted model. This contrasts with E(i), where the
+static Cox model estimated FICO and LTV with the expected signs; those effects require a
+larger time-varying sample to be separately identified from the baseline hazard.
 
 % =================================================================
 \section{MBS Cash Flow Projection}
@@ -170,7 +175,7 @@ $d$ is the scenario discount rate (market rate per scenario).
     \includegraphics[width=0.88\linewidth]{processed/Eiv_mbs_cashflows}
     \caption{WAL (left) and price (right) by rate scenario.
       Error bars show Monte Carlo standard deviation across 200 paths.
-      Baseline price $= \$98.52 < $ par: market rate (7.0\%) $>$ coupon (6.5\%).}
+      Baseline price $= \$99.07 \approx$ par: market rate (5.3\%) slightly above coupon (5.0\%).}
 \end{figure}
 
 \begin{center}
@@ -179,21 +184,21 @@ $d$ is the scenario discount rate (market rate per scenario).
 \toprule
 \textbf{Scenario} & \textbf{WAL (yr)} & $\pm$ & \textbf{Price (\$)} & $\pm$ \\
 \midrule
-$-300$\,bp & 3.21 & 0.02 & 107.35 & 0.05 \\
-$-200$\,bp & 3.30 & 0.02 & 104.42 & 0.03 \\
-$-100$\,bp & 3.39 & 0.03 & 101.48 & 0.01 \\
-Baseline   & 3.48 & 0.02 &  98.52 & 0.01 \\
-$+100$\,bp & 3.58 & 0.03 &  95.56 & 0.03 \\
-$+200$\,bp & 3.68 & 0.02 &  92.60 & 0.04 \\
-$+300$\,bp & 3.78 & 0.03 &  89.65 & 0.05 \\
+$-300$\,bp & 3.25 & 0.02 & 108.32 & 0.06 \\
+$-200$\,bp & 3.34 & 0.02 & 105.26 & 0.03 \\
+$-100$\,bp & 3.43 & 0.03 & 102.17 & 0.01 \\
+Baseline   & 3.53 & 0.02 &  99.07 & 0.00 \\
+$+100$\,bp & 3.63 & 0.03 &  95.96 & 0.03 \\
+$+200$\,bp & 3.73 & 0.02 &  92.86 & 0.04 \\
+$+300$\,bp & 3.83 & 0.03 &  89.77 & 0.06 \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-\textbf{WAL range}: 0.57\,yr ($-300$ to $+300$\,bp). \textbf{Price range}: \$17.70.
-\textbf{Negative convexity}: the $-300$\,bp price gain (\$8.83) is slightly less than
-the $+300$\,bp price loss (\$8.87), consistent with prepayment capping upside by
-returning principal at par. Monte Carlo uncertainty (\$0.01--0.05) is negligible
+\textbf{WAL range}: 0.58\,yr ($-300$ to $+300$\,bp). \textbf{Price range}: \$18.55.
+\textbf{Negative convexity}: the $-300$\,bp price gain (\$9.25) is slightly less than
+the $+300$\,bp price loss (\$9.30), consistent with prepayment capping upside by
+returning principal at par. Monte Carlo uncertainty (\$0.00--0.06) is negligible
 relative to the scenario spread, validating 200 paths as sufficient.
 
 % =================================================================
@@ -222,10 +227,12 @@ relative to the scenario spread, validating 200 paths as sufficient.
         The asymmetric price response at $\pm 300$\,bp (\$8.83 vs \$8.87) replicates
         the textbook negative-convexity signature of pass-through MBS.
 
-  \item \textbf{FICO gates access; LTV caps the ceiling.}
-        The 2D contour confirms that both constraints from E(i) and E(ii) operate jointly:
-        a favorable rate incentive only generates prepayment if the borrower has both
-        credit access (FICO) and sufficient equity (LTV).
+  \item \textbf{FICO and LTV are non-significant in the fitted TV Cox.}
+        The 2D contour surfaces are flat in the FICO and LTV dimensions, reflecting
+        near-zero coefficients from the 500K-row subsample ($p>0.75$). The joint
+        constraint from E(i) --- credit access gates refinancing, equity caps the ceiling
+        --- is a valid economic mechanism that requires a larger sample to surface in
+        the time-varying specification.
 
 \end{enumerate}
 
