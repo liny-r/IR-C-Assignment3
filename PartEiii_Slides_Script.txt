@@ -1,0 +1,64 @@
+Part E(iii) — Neural Survival Models Speaker Script
+====================================================
+
+Slide 1 — Title
+"I'll be walking through Part E(iii) — where we replace the Cox proportional-hazards framework with a Transformer encoder that reads the full monthly covariate history of each mortgage."
+
+---
+
+Slide 2 — Motivation
+"The core limitation of Cox and Andersen-Gill is that covariate effects are assumed constant over time. A borrower's prepayment hazard doesn't work that way — it follows an S-curve that depends on the full path of rate incentives, not just today's value. A 2007-vintage subprime loan and a 2020-vintage prime loan might have the same origination snapshot but completely opposite histories. Only a sequence model can distinguish them. The Transformer reads the full monthly path, produces nonlinear time-varying hazard rates, and models prepayment and default jointly through a shared encoder."
+
+---
+
+Slide 3 — Architecture rationale
+"Before describing what the model is, it's worth explaining why we chose this particular combination. Three alternatives were considered and rejected. First, LSTM encoders suffer from vanishing gradients over 120-month sequences and primarily attend to adjacent positions — so a rate shock at origination month 6 that still shapes prepayment at month 60 is hard to represent. The Transformer reaches any past position in one attention step. Second, the natural simplification of having a single context vector feed into a wide head that outputs all 120 hazard rates at once turns out to fail: the head has no time-index input, so it can't vary the hazard by month; attention heads also get no gradient unless they're at the last position. Per-timestep heads fix both problems. Third, fitting two separate Cox models violates independent censoring: defaulted loans are the riskiest borrowers, so treating them as random exits inflates the prepayment denominator exactly when and where it shouldn't. The joint encoder with the chain-product CIF enforces the same partition identity we derived in E(i) from the Aalen-Johansen estimator."
+
+---
+
+Slide 4 — Architecture
+"The model takes a padded sequence of 120 monthly covariate vectors per loan, projects it to 64 dimensions, adds sinusoidal positional encoding over loan age, and passes it through two pre-norm Transformer encoder layers with 4 attention heads and a causal mask. The key choice is per-timestep cause-specific heads: each hidden state h_t feeds independently into two small FC networks to produce the prepayment and default hazard at month t. The CIFs are computed via the competing-risk chain product, guaranteeing CIF1 plus CIF2 plus S equals 1 at every month. Training combines discrete-time NLL with a soft pairwise ranking loss. The model has 76,290 parameters and trained on 101K loans — 60K prepayments, 31K defaults, 35K censored — for 41 epochs with early stopping at patience 12, Adam lr=3e-4, cosine schedule. Best model from epoch 29."
+
+---
+
+Slide 5 — Training curves
+"The training curves reveal the key limitation. The NLL component collapses to near-zero hazard rates in the first epoch — a known instability when survival gradients dominate at a 1.6% monthly default base rate. The NLL freezes at around 10.91 for all 41 epochs. What does drive learning is the ranking loss, descending steadily from 1.97 to 1.84, pushing the model to correctly order loans by risk even at collapsed absolute hazard values. The consequence: discrimination — AUC — is preserved, while absolute calibration — Brier scores — is not."
+
+---
+
+Slide 6 — CIF archetypes
+"To check economic plausibility, we run three synthetic archetypes through a 2005-2015 macro scenario. The default CIFs separate sharply — subprime reaching roughly 20% versus less than 2% for prime. The model learns this credit-risk spread entirely from covariate history. Despite the NLL calibration issue, relative ordering is correct."
+
+---
+
+Slide 7 — Gradient sensitivity
+"Gradient sensitivity confirms what the model is using. For prepayment: rate incentive and current LTV dominate, capturing the classic S-curve. For default: FICO and unemployment lead — origination credit quality and macro distress — consistent with the cause-specific Cox in E(i). Rate incentive is near zero for default, confirming it is a prepayment-specific signal."
+
+---
+
+Slide 8 — Sensitivity over time
+"Resolving sensitivity by loan age: rate incentive dominates early months when borrowers first become eligible to refinance, then ELTV rises as equity accumulates. This time-resolved view is only possible with a sequence model — Cox assigns one coefficient per feature with no lifecycle dimension."
+
+---
+
+Slide 9 — Attention heatmaps
+"Heads H1 and H2 concentrate on early months, capturing origination quality. Heads H3 and H4 attend to recent months, tracking the current rate environment. This specialisation emerges from training without any architectural constraint — just the causal mask."
+
+---
+
+Slide 10 — Model performance
+"Here is the key result. For prepayment CIF1, we're below DeepCox: 0.641 at T=12 declining to 0.515 at T=60 versus DeepCox's 0.684 to 0.729. The NLL collapse is the main driver at long horizons.
+
+For default CIF2, the story is different. Our model scores 0.687, 0.708, 0.707, and 0.726. DeepCox scores 0.684, 0.701, 0.721, and 0.729. These are essentially the same numbers — and at T=12 and T=24 we're slightly above. This is despite using roughly 6 times fewer training loans. The Transformer's access to the full monthly covariate path compensates for the data volume disadvantage in default prediction.
+
+On calibration: Brier scores range from 0.068 at T=12 to 0.304 at T=60 — elevated because the model assigns near-zero absolute hazard rates everywhere. Fixing the NLL collapse via focal-loss upweighting is the top priority improvement."
+
+---
+
+Slide 11 — Key Takeaways
+"To summarize: The architecture successfully exploits the sequence structure. Competing risks are modelled end-to-end with a guaranteed probability partition. Gradient sensitivity replicates the E(i) Cox findings without imposing them. Most importantly, default AUC matches Part D's DeepCox at every horizon despite 6 times less training data — temporal covariate history compensates for data volume. The known limitation is NLL calibration: the lambda-to-zero collapse is the highest-priority fix, requiring focal-loss upweighting and output bias initialisation to the monthly base hazard rate."
+
+---
+
+Slide 12 — Thank you / Questions
+(No script needed — take questions.)
