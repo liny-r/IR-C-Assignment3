@@ -67,7 +67,38 @@
     \end{center}
 \end{frame}
 
-% ---- 2. Architecture -----------------------------------------------------
+% ---- 2b. Architecture rationale ------------------------------------------
+\begin{frame}{Three design decisions: why this architecture over the alternatives.}
+    \begin{columns}[T,onlytextwidth]
+        \column{0.48\textwidth}
+        \begin{alertblock}{Alternatives considered}
+        \small
+        \begin{tabular}{@{}p{1.6cm}p{3.8cm}@{}}
+            \textbf{LSTM} & Vanishing gradients at $T{=}120$; attends only to adjacent past month; harder to interpret \\[4pt]
+            \textbf{Single-context head} & Compresses full history to one vector; head has no time index, produces near-constant hazard curve; gradient reaches only the last hidden state \\[4pt]
+            \textbf{Two separate models} & Violates independent censoring: defaulted loans are the riskiest borrowers, not random exits; loses shared macro signal \\
+        \end{tabular}
+        \end{alertblock}
+
+        \column{0.48\textwidth}
+        \begin{block}{Why this combination}
+        \small
+        \begin{tabular}{@{}p{1.6cm}p{3.8cm}@{}}
+            \textbf{Causal Transformer} & Reaches any past month in one attention step; gradient flows through every position; attention weights interpretable \\[4pt]
+            \textbf{Per-timestep head} & $\lambda(t) = \text{head}(h_t)$: hazard conditioned on full causal history $\mathbf{x}_1\!\dots\mathbf{x}_t$; each month independently trained \\[4pt]
+            \textbf{Joint encoder} & Shared representation learns that same macro shock raises default and lowers prepayment; chain product enforces $\text{CIF}_1+\text{CIF}_2+S=1$ \\
+        \end{tabular}
+        \end{block}
+    \end{columns}
+    \vspace{0.3em}
+    \begin{center}
+        \small
+        Discrete-time hazards on the monthly grid eliminate tied-event problems and allow
+        exact CIF computation without numerical integration.
+    \end{center}
+\end{frame}
+
+% ---- 3. Architecture -----------------------------------------------------
 \begin{frame}{LongitudinalDeepHit: Transformer encoder with two CIF output heads.}
     \begin{columns}[T,onlytextwidth]
         \column{0.52\textwidth}
@@ -78,8 +109,8 @@
             \textbf{Proj.}  & Linear $D \to d_{\text{model}}{=}64$ \\[1pt]
             \textbf{PE}     & Sinusoidal positional encoding on loan age \\[1pt]
             \textbf{Enc.}   & $\times 2$ pre-norm layers, 4 heads, causal mask \\[1pt]
-            \textbf{Head 1} & FC $64\!\to\!128\!\to\!T_{\max}$, Sigmoid $\Rightarrow \lambda_1(t)$ \\[1pt]
-            \textbf{Head 2} & FC $64\!\to\!128\!\to\!T_{\max}$, Sigmoid $\Rightarrow \lambda_2(t)$ \\[1pt]
+            \textbf{Head 1} & FC $64\!\to\!64\!\to\!1$ per $h_t$, Sigmoid $\Rightarrow \lambda_1(t)$ \\[1pt]
+            \textbf{Head 2} & FC $64\!\to\!64\!\to\!1$ per $h_t$, Sigmoid $\Rightarrow \lambda_2(t)$ \\[1pt]
             \textbf{CIFs}   & Competing-risk chain product \\
         \end{tabular}
         \end{block}
@@ -108,17 +139,17 @@
         \textbf{NLL}: discrete-time cause-specific likelihood\\[2pt]
         \textbf{Ranking loss}: soft pairwise concordance (DeepHit-style)\\[4pt]
         \begin{tabular}{@{}ll@{}}
-            Params  & 115,440 \\
+            Params  & 76,290 \\
             Data    & 100K loans, 4.5M rows \\
-            Epochs  & 40  (Adam, cosine LR) \\
-            Loss    & $5.05 \to 0.94$ \\
+            Epochs  & 41 (early stop ep.\,29, lr$=3\!\times\!10^{-4}$) \\
+            Loss    & $11.30 \to 11.28$ (rank $1.97\to1.84$) \\
         \end{tabular}
         \end{block}
     \end{columns}
 \end{frame}
 
 % ---- 3. Training curves --------------------------------------------------
-\begin{frame}{Loss converges cleanly; NLL and ranking components both decline.}
+\begin{frame}{NLL collapses to $\lambda\!\approx\!0$; ranking loss drives AUC improvement.}
     \begin{center}
         \includegraphics[width=0.92\linewidth]{processed/Eiii_training_curves}
     \end{center}
@@ -152,7 +183,22 @@
     \end{center}
 \end{frame}
 
-% ---- 6. Attention heatmaps -----------------------------------------------
+% ---- 6. Sensitivity over time --------------------------------------------
+\begin{frame}{Feature importance shifts across the loan lifecycle --- unique to sequence models.}
+    \begin{center}
+        \includegraphics[width=0.92\linewidth]{processed/Eiii_sensitivity_over_time}
+    \end{center}
+    \vspace{-0.4em}
+    \begin{center}
+        \small
+        \texttt{rate\_incentive} drives early months; \texttt{ELTV} rises as equity accumulates
+        and gates the refinancing option.\\
+        Cox assigns one coefficient per feature with no lifecycle dimension ---
+        this view is only possible with a sequence model.
+    \end{center}
+\end{frame}
+
+% ---- 7. Attention heatmaps -----------------------------------------------
 \begin{frame}{Attention heads specialise: early months capture origination quality.}
     \begin{center}
         \includegraphics[width=0.90\linewidth]{processed/Eiii_attention_heatmaps}
@@ -168,39 +214,46 @@
 \end{frame}
 
 % ---- 7. Model performance ------------------------------------------------
-\begin{frame}{AUC at fixed horizons --- with an honest interpretation of the numbers.}
+\begin{frame}{Default AUC matches DeepCox; prepayment underperforms due to NLL collapse.}
     \begin{columns}[T,onlytextwidth]
-        \column{0.52\textwidth}
+        \column{0.56\textwidth}
         \begin{center}
-            \small
+            \small\textbf{Prepayment CIF$_1$}\\[3pt]
             \begin{tabular}{lcccc}
                 \toprule
                 \textbf{Model} & \textbf{T=12} & \textbf{T=24} & \textbf{T=36} & \textbf{T=60} \\
                 \midrule
-                Part D DeepCox\textsuperscript{$\dagger$}   & 0.684 & 0.701 & 0.721 & 0.729 \\
-                \midrule
-                DeepHit (20K)\textsuperscript{$\ddagger$}   & 0.973 & 0.976 & 0.977 & 0.962 \\
-                DeepHit (338)\textsuperscript{$\S$}         & 0.991 & 0.987 & 0.977 & 0.936 \\
+                Part D DeepCox\textsuperscript{$\dagger$} & 0.684 & 0.701 & 0.721 & 0.729 \\
+                DeepHit (20K)\textsuperscript{$\ddagger$} & 0.641 & 0.622 & 0.572 & 0.515 \\
+                DeepHit (344)\textsuperscript{$\S$}       & 0.677 & 0.647 & 0.565 & 0.334 \\
                 \bottomrule
             \end{tabular}
-            \vspace{0.5em}\\
-            \small
-            $^\dagger$ 597K canonical test, origination features only\\
-            $^\ddagger$ 20K oversampled hold-out, vintage-mixed\\
-            $^\S$ 338 canonical-vintage loans in hold-out
+            \vspace{4pt}\\
+            \small\textbf{Default CIF$_2$}\\[3pt]
+            \begin{tabular}{lcccc}
+                \toprule
+                \textbf{Model} & \textbf{T=12} & \textbf{T=24} & \textbf{T=36} & \textbf{T=60} \\
+                \midrule
+                Part D DeepCox\textsuperscript{$\dagger$}  & 0.684 & 0.701 & 0.721 & 0.729 \\
+                DeepHit (20K)\textsuperscript{$\ddagger$}  & \textbf{0.687} & \textbf{0.708} & \textbf{0.707} & \textbf{0.726} \\
+                \bottomrule
+            \end{tabular}
+            \vspace{3pt}\\
+            \tiny $^\dagger$ 597K canonical · $^\ddagger$ 20K oversampled hold-out · $^\S$ 344 canonical-vintage loans
         \end{center}
 
-        \column{0.44\textwidth}
-        \begin{alertblock}{Why 0.97 $\neq$ ``better than Part D''}
+        \column{0.40\textwidth}
+        \begin{block}{Key result}
         \small
-        \begin{enumerate}\itemsep3pt
-            \item \textbf{Vintage overlap}: random 80/20 split --- model trains and tests on same cohorts
-            \item \textbf{Sequence leakage}: Transformer sees full monthly history up to the event month ---
-                  timing is partially revealed
-        \end{enumerate}
-        \vspace{4pt}
-        A fair comparison requires a \textbf{vintage-based out-of-time split}.
-        The structural advantage is real; the magnitude is inflated.
+        Default AUC \textbf{matches DeepCox} at every horizon with 6$\times$ fewer training loans.
+        Temporal covariate history compensates for data volume.
+        \end{block}
+        \begin{alertblock}{NLL calibration}
+        \small
+        $\lambda\!\to\!0$ collapse freezes NLL at $\approx\!10.91$.\\
+        Brier scores: 0.068, 0.157, 0.221, 0.304.\\
+        Discrimination (AUC) is preserved;\\
+        absolute calibration is not.
         \end{alertblock}
     \end{columns}
 \end{frame}
@@ -218,10 +271,11 @@
               \texttt{FICO} + \texttt{unemployment} drive default.
         \item \textbf{Attention is interpretable}: different heads specialise on
               origination quality vs.\ current rate environment.
-        \item \textbf{AUC is inflated by methodology}: vintage-based out-of-time split
-              and a larger training set are the two most impactful improvements.
-        \item \textbf{Brier scores $<$ 0.05 at all horizons}: probabilistic forecasts
-              are well-calibrated regardless of the AUC comparison issue.
+        \item \textbf{Default AUC matches DeepCox}: CIF$_2$ AUC 0.687--0.726 vs.\
+              DeepCox 0.684--0.729, using 6$\times$ fewer training loans.
+        \item \textbf{NLL collapse is a known limitation}: survival gradient dominates
+              at 1.6\% monthly default rate; fixing requires focal-loss upweighting.
+              Discrimination (AUC) is preserved; Brier scores are elevated (0.07--0.30).
     \end{enumerate}
 \end{frame}
 
