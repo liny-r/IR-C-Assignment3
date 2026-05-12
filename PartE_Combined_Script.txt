@@ -1,0 +1,109 @@
+Part E — Speaker Script (7-minute version)
+==========================================
+
+─── E(i): Competing Risks ───────────────────────────────────────────────
+
+[Title card]
+"I'll cover Part E — four extensions to survival modeling for mortgages."
+
+[Prepaid and default are competing risks]
+"Loans exit in two ways: prepayment peaks around month 24 as borrowers refinance, default peaks around month 60 from financial deterioration. These are two fundamentally different processes — they need separate models."
+
+[KM vs AJ]
+"Kaplan-Meier treats competing exits as random censoring, shrinking the denominator and inflating each cause's probability. Aalen-Johansen keeps all exits in the denominator, so prepayment + default + active always sums to exactly 100%."
+
+[AJ CIF partition]
+"Here's the AJ partition: at 10 years, 83.3% prepaid, 2.2% defaulted, 14.5% still active — those three numbers sum to 100%, which KM cannot guarantee."
+
+[KM bias]
+"The KM overstatement compounds over time: 0.45pp at 5 years, 1.3pp at 10, 2.2pp at 20. On a $100M pool, that's roughly $1M of mispriced duration."
+
+[FICO and LTV]
+"FICO separates default risk by 6x but barely moves prepayment — credit quality gives access to refinancing, not the incentive. Vintage dominates everything."
+
+[Cause-specific Cox]
+"We fit one Cox model per cause, treating the other cause as censored. This keeps the two mechanisms cleanly separated."
+
+[Forest plot]
+"Rate incentive has a strong positive effect on prepayment and near-zero on default — it's a pure refinancing signal. Max delinquency points opposite directions for each cause."
+
+[Sign flip table]
+"A naive combined model hides these opposites. Max delinquency's naive coefficient is −0.12, masking a spread of +0.54 between the two cause-specific estimates."
+
+[Key Takeaways E(i)]
+"Bottom line: KM overstates prepayment, vintage dominates FICO and LTV, and a combined Cox model gives the wrong sign for credit variables."
+
+─── E(ii): Time-Varying Covariates ──────────────────────────────────────
+
+[Title card]
+"Now we extend Cox to update covariates every month instead of fixing them at origination."
+
+[Static vs Andersen-Gill]
+"Static Cox fixes every variable at origination. A 2020 borrower had strong refi incentive then — by 2023, with rates at 7%, that incentive was −4pp. The Andersen-Gill model updates four features monthly: rate incentive, current LTV, unemployment, and HPI."
+
+[AG model]
+"The hazard formula is identical to standard Cox — the only change is x(t) updates each month. One loan contributes one row per month of its life."
+
+[Feature trajectories]
+"This is what the static model discards. The 2020 vintage started in-the-money but turned deeply negative after 2022 — rate lock-in. The 2007 vintage shows the opposite path. These channels are invisible at origination."
+
+[Coefficient comparison]
+"Rate incentive becomes the dominant predictor in TV Cox — it's near zero at origination for every loan, so only monthly updates make it informative. Unemployment flips sign because high-unemployment periods coincided with Fed easing."
+
+[C-index]
+"TV Cox beats static at horizons up to 60 months — gains of +0.06 at T=24 where most prepayments happen. Beyond 70 months, static overtakes because loans still alive that long are a locked-in, filtered group where current features backfire."
+
+[Key Takeaways E(ii)]
+"Monthly updates add substantial information at short horizons. Rate incentive is the key driver. The long-horizon reversal is a structural feature of landmark C-index, not a model failure."
+
+─── E(iii): Neural Survival Models ──────────────────────────────────────
+
+[Title card]
+"Now we go beyond Cox with a Transformer that reads the full monthly history of each loan."
+
+[Why beyond Cox]
+"Cox assumes covariate effects are constant over time. A 2007 subprime loan and a 2020 prime loan can have the same origination snapshot but completely opposite histories — only a sequence model can distinguish them."
+
+[Architecture rationale]
+"We chose a Transformer over LSTM because it can directly attend to any point in a 120-month sequence — a rate shock at month 6 shaping behavior at month 60 is easy to represent."
+
+[Architecture]
+"120 monthly vectors per loan, projected to 64 dimensions, two Transformer encoder layers with causal masking. Two output heads produce prepayment and default hazards. The competing-risk chain product guarantees CIF1 + CIF2 + survival = 1 at every month."
+
+[Training dynamics]
+"NLL freezes because 98.4% of loan-months have no event — predicting near-zero hazard for everyone is already the loss-minimizing solution. Cox avoids this through partial likelihood, which never predicts absolute hazard values. AUC is preserved because the ranking loss correctly orders loans by risk."
+
+[Gradient sensitivity]
+"Rate incentive and current LTV drive prepayment; FICO and unemployment drive default — replicating the E(i) cause-specific Cox findings without imposing them."
+
+[Feature importance over lifecycle]
+"Rate incentive dominates early months; current LTV rises later as equity accumulates and starts gating refinancing. This time-resolved view is impossible in Cox."
+
+[Model performance]
+"For default, our model matches DeepCox at every horizon with 6x fewer training loans — the full covariate history compensates for data volume. Prepayment lags DeepCox due to the NLL collapse."
+
+[Key Takeaways E(iii)]
+"The Transformer successfully exploits sequence structure. Default AUC matches Part D's benchmark. The known limitation is calibration — the NLL collapse is the priority fix via focal-loss upweighting."
+
+─── E(iv): Scenario Analysis ────────────────────────────────────────────
+
+[Title card]
+"Finally, we stress-test prepayment under rate shocks and translate that into MBS cash flows."
+
+[TV Cox rate channel]
+"The TV Cox model has a direct rate channel: rate incentive updates every month, so a 300bp cut immediately raises log-hazard by +0.123. Static models like Part D's DeepCox have no such channel — you'd be shocking the origination coupon, which produces the wrong direction."
+
+[Shock sensitivity]
+"Each 100bp rate cut raises prepayment hazard by 4.2%. The model has a linear rate channel — equal rate steps produce equal hazard steps — making results fully explainable from one coefficient."
+
+[Survival curves]
+"The ±300bp range shifts 10-year survival by 6.6pp and median prepayment month by 10 months, monotonically ordered as expected."
+
+[MBS cash flows]
+"Weighted Average Life ranges 0.58 years and price ranges $18.55 across ±300bp. The key result is negative convexity: when rates fall, borrowers prepay at par, capping price upside — the $9.25 gain is slightly less than the $9.30 loss at ±300bp."
+
+[Key Takeaways E(iv)]
+"Static models give the wrong direction for scenario analysis. TV Cox's linear rate channel makes stress results predictable and explainable. Negative convexity is correctly captured. FICO and LTV need more data to surface — rate incentive drives all CPR variation here."
+
+─────────────────────────────────────────────────────────────────────────
+(Take questions.)
