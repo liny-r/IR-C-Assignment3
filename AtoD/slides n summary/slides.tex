@@ -30,8 +30,8 @@
 % ---------- Title ----------
 \title{Mortgage Prepayment Risk Modeling}
 \subtitle{From Kaplan--Meier to Deep Survival Analysis}
-\author{Rose Lin, Paolo Smalhout, Daniel Tuzes}
-\institute{MTH 9877 --- Interest Rate and Credit Models\\Baruch College, Spring 2026}
+\author{R. Lin, P. Smalhout, D. Tuzes}
+\institute{IR and Credit}
 \date{May 13, 2026}
 
 % =========================================================================
@@ -84,81 +84,22 @@
 
     \vspace{0.6em}
 
-    \textbf{Train/test split.} By vintage --- train: $\leq$ 2014 (full crisis cycle); test: 2015--2019. Single \texttt{canonical\_split.parquet} is the source of truth shared by Parts C and D.
+    \textbf{Train/test split.} By vintage --- train: $\leq$ 2014 (full crisis cycle); test: 2015--2019.
 
 \end{frame}
 
-% ============================================================ Slide 4: Pipeline architecture
-\begin{frame}{Pipeline Architecture}
-
-    \textbf{Six scripts + four plotting notebooks, end-to-end $\approx 50$ minutes on CPU.}
-
-    \vspace{0.5em}
-
-    \begin{center}
-        \small
-        \begin{tabular}{lll}
-            \toprule
-            Stage                                   & Output                            & Runtime \\
-            \midrule
-            \texttt{build\_survival\_table.py}      & \texttt{survival\_table.parquet}  & 8 min   \\
-            \texttt{part\_a\_survival\_analysis.py} & \texttt{results\_a/*.parquet}     & 3.5 min \\
-            \texttt{part\_b\_cox\_model.py}         & \texttt{results\_b/*.parquet}     & 12 min  \\
-            \texttt{part\_c\_ml\_models.py}         & \texttt{results\_cd/*.parquet}    & 12 min  \\
-            \texttt{part\_d\_deep\_cox.py}          & \texttt{results\_cd/D\_*.parquet} & 19 min  \\
-            \bottomrule
-        \end{tabular}
-    \end{center}
-
-    \vspace{0.7em}
-
-    \textbf{Design principle: compute / plot separation.}
-    \begin{itemize}\itemsep1pt
-        \item Scripts emit parquet only; no plotting in compute scripts.
-        \item Plotting notebooks live alongside their parquets and read from \texttt{.}.
-        \item A central \texttt{utilities.py} hosts the canonical pre-processing functions (\texttt{build\_feature\_matrix}, \texttt{build\_horizon\_targets}, \texttt{standardize\_three}) used by all parts.
-    \end{itemize}
-
-    \textbf{Reproducibility.} Single-source-of-truth split; encoders fit once on train, persisted; deterministic seeds throughout.
-
-\end{frame}
+% ============================================================ Slide 4: Pipeline architecture removed
 
 % ============================================================ Slide 5: Part A overall KM
 \begin{frame}{Part A --- Kaplan--Meier on the Full Population}
 
-    \textbf{No sampling: KM fit on all 31.7M loans.}
+    \textbf{No sampling: KM "fit" on all 31.7M loans.}
 
-    \begin{columns}[T,onlytextwidth]
-        \column{0.55\textwidth}
-        \begin{center}
-            \includegraphics[width=\linewidth]{plots/A_km_overall.png}
-        \end{center}
+    \begin{center}
+        \includegraphics[width=0.55\linewidth]{plots/A_km_overall.pdf}
+    \end{center}
 
-        \column{0.45\textwidth}
-        \textbf{Key timepoints:}
-        \vspace{0.3em}
-        \small
-        \begin{tabular}{rcc}
-            \toprule
-            $t$ (mo) & $S(t)$ & \% prepaid \\
-            \midrule
-            12       & 0.898  & 10.2       \\
-            36       & 0.623  & 37.7       \\
-            60       & 0.427  & 57.3       \\
-            120      & 0.155  & 84.5       \\
-            240      & 0.037  & 96.3       \\
-            \bottomrule
-        \end{tabular}
-
-        \vspace{0.6em}
-        \normalsize
-        Median time to prepayment: \textbf{50 months}.
-
-    \end{columns}
-
-    \vspace{0.7em}
-
-    \textbf{All non-prepay outcomes pooled as right-censored} (cause-specific framing): 9.94M censored vs 21.75M events.
+    \textbf{All non-prepay outcomes pooled as right-censored} (cause-specific framing): \\ 9.94M censored vs 21.75M events.
 
 \end{frame}
 
@@ -166,11 +107,10 @@
 \begin{frame}{Part A --- Hazards}
 
     \begin{center}
-        \includegraphics[width=0.65\linewidth]{plots/A_hazard_overall.png}
+        \includegraphics[width=0.85\linewidth]{plots/A_hazard_overall.pdf}
     \end{center}
 
-    \textbf{Discrete monthly hazard:} ramps from $\approx$ 1\% at $t{=}6$ to $\approx$ 1.4\% at $t{=}12$, then plateaus at 1.5--1.7\% (annualized $\approx$ 17--18\%) from year 2 onward.
-
+    \textbf{Discrete monthly hazard:} ramps from $\approx$ 1\% at $t{=}6$ to $\approx$ 1.4\% at $t{=}12$, then plateaus at 1.5--1.7\%
     \textbf{Sanity check:} $-\log S_{\text{KM}}$ vs Nelson--Aalen cumulative hazard agree to within numerical precision (as expected --- both estimate $H(t)$).
 
 \end{frame}
@@ -181,7 +121,7 @@
     \begin{columns}[T,onlytextwidth]
         \column{0.5\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{plots/A_km_by_vintage.png}
+            \includegraphics[width=\linewidth]{plots/A_km_by_vintage.pdf}
         \end{center}
         \small
         \textbf{Vintage dominates.}
@@ -190,7 +130,7 @@
 
         \column{0.5\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{plots/A_km_by_fico.png}
+            \includegraphics[width=\linewidth]{plots/A_km_by_fico.pdf}
         \end{center}
         \small
         \textbf{FICO is monotone but modest.}
@@ -226,7 +166,7 @@
 
         \column{0.42\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{plots/B_hazard_ratios_base.png}
+            \includegraphics[width=\linewidth]{plots/B_hazard_ratios_base.pdf}
         \end{center}
 
     \end{columns}
@@ -259,7 +199,7 @@
 
         \column{0.42\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{plots/B_hazard_ratios_macro.png}
+            \includegraphics[width=\linewidth]{plots/B_hazard_ratios_macro.pdf}
         \end{center}
     \end{columns}
 
@@ -273,7 +213,7 @@
     \begin{columns}[T,onlytextwidth]
         \column{0.55\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{plots/B_ph_test.png}
+            \includegraphics[width=\linewidth]{plots/B_ph_test.pdf}
         \end{center}
         \column{0.45\textwidth}
         \textbf{Why this matters.}
@@ -318,7 +258,7 @@
     \begin{columns}[T,onlytextwidth]
         \column{0.55\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{plots/C_auc_by_horizon.png}
+            \includegraphics[width=\linewidth]{plots/C_auc_by_horizon.pdf}
         \end{center}
 
         \column{0.45\textwidth}
@@ -354,13 +294,13 @@
     \begin{columns}[T,onlytextwidth]
         \column{0.5\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{plots/C_calibration.png}
+            \includegraphics[width=\linewidth]{plots/C_calibration.pdf}
         \end{center}
         \textbf{Calibration} is reasonable for all models. LightGBM and LogReg sit closest to the diagonal; Cox is slightly under-confident at the high end.
 
         \column{0.5\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{plots/C_top_decile_lift.png}
+            \includegraphics[width=\linewidth]{plots/C_top_decile_lift.pdf}
         \end{center}
 
         \textbf{Top-decile lift.} At T=12 the top decile catches 27.6\% prepayments (LightGBM) vs 10.75\% baseline $\to$ \textbf{lift = 2.57$\times$}. Saturates at T=60 because the base rate is already 71.7\%.
@@ -420,7 +360,7 @@
     \begin{columns}[T,onlytextwidth]
         \column{0.55\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{plots/D_ablation_bars.png}
+            \includegraphics[width=\linewidth]{plots/D_ablation_bars.pdf}
         \end{center}
 
         \column{0.45\textwidth}
@@ -453,7 +393,7 @@
     \begin{columns}[T,onlytextwidth]
         \column{0.55\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{plots/D_auc_by_horizon.png}
+            \includegraphics[width=\linewidth]{plots/D_auc_by_horizon.pdf}
         \end{center}
 
         \column{0.45\textwidth}
@@ -519,13 +459,13 @@
     \begin{columns}[T,onlytextwidth]
         \column{0.5\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{plots/D_calibration.png}
+            \includegraphics[width=\linewidth]{plots/D_calibration.pdf}
         \end{center}
         \textbf{Calibration.} DeepCox sits close to the diagonal at all horizons. LinearCox slightly under-confident.
 
         \column{0.5\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{plots/D_top_decile_lift.png}
+            \includegraphics[width=\linewidth]{plots/D_top_decile_lift.pdf}
         \end{center}
 
         \textbf{Top-decile lift.} At moderate horizons (T=24, T=36) DeepCox catches more positives:
