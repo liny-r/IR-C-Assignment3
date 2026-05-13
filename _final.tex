@@ -30,18 +30,491 @@
 \setbeamertemplate{navigation symbols}{}
 
 % ---------- Title ----------
-\title{Part E: Mortgage Survival Analysis}
-\subtitle{Competing Risks\enspace$\cdot$\enspace Time-Varying Cox\enspace$\cdot$\enspace Neural Models\enspace$\cdot$\enspace Scenario Analysis}
-\author{Yueqi Lin}
-\institute{MTH 9877 --- Interest Rate and Credit Models\\Baruch College, Spring 2026}
+\title{Mortgage Prepayment Risk Modeling}
+\subtitle{KM \& Cox $\cdot$ ML \& Deep Learning $\cdot$ Competing Risks $\cdot$ Neural Survival $\cdot$ Scenario Analysis}
+\author{R.\ Lin\enspace$\cdot$\enspace P.\ Smalhout\enspace$\cdot$\enspace D.\ Tuzes}
+\institute{IR and Credit\enspace$\cdot$\enspace MTH 9877\enspace$\cdot$\enspace Baruch College, Spring 2026}
 \date{May 13, 2026}
 
 % =========================================================================
 \begin{document}
 
-% ---- Global title --------------------------------------------------------
+% ---- Title ---------------------------------------------------------------
 \begin{frame}[plain]
     \titlepage
+\end{frame}
+
+% ---- Project Scope -------------------------------------------------------
+\begin{frame}{Project Scope}
+
+    \textbf{Goal.} Build a survival-analysis pipeline for mortgage prepayment on Freddie Mac single-family data, comparing classical, ML, and deep-learning approaches.
+
+    \vspace{0.5em}
+
+    \textbf{What we implemented:}
+    \begin{itemize}\itemsep2pt
+        \item \textbf{Part A.} Kaplan--Meier survival on the full 31.7M-loan population, stratified by FICO/LTV/vintage/purpose
+        \item \textbf{Part B.} Cox proportional hazards (origination + vintage-macro covariates), PH diagnostics
+        \item \textbf{Part C.} ML models (LogReg, RF, LightGBM) for horizon-specific prepayment prediction; Cox baseline
+        \item \textbf{Part D.} Deep Cox model (DeepSurv) + linear-Cox-via-SGD ablation
+        \item \textbf{Part E.} Competing risks (AJ), time-varying Cox (Andersen--Gill), neural survival (LongitudinalDeepHit), scenario analysis
+    \end{itemize}
+
+    \vspace{0.5em}
+
+    \textbf{Headline result.} Deep Cox: AUC = 0.729 at T=60 vs 0.685 linear baseline ($\Delta=+0.045$). Gap widens monotonically with horizon.
+
+\end{frame}
+
+% ---- Data ----------------------------------------------------------------
+\begin{frame}{Data: Freddie Mac Single-Family Loan-Level}
+
+    \textbf{Population.} 31{,}688{,}129 30-year fixed-rate mortgages, originated 1999--2025.
+
+    \vspace{0.6em}
+
+    \textbf{Outcomes (cause-specific framing for prepayment):}
+    \begin{itemize}\itemsep1pt
+        \item Prepaid (Zero Balance Code 01): 21{,}748{,}774 (68.6\%) --- the event
+        \item Credit-related termination (ZBC 03, 09): 532{,}230 (1.7\%)
+        \item Other termination (ZBC 02, 15, 16, 96): 265{,}311 (0.8\%)
+        \item Right-censored (still active): 9{,}141{,}814 (28.8\%)
+    \end{itemize}
+
+    \vspace{0.6em}
+
+    \textbf{Survival table.} One row per loan with \texttt{Duration}, \texttt{Event\_Prepay}, and 39 origination covariates. Built once via polars, persisted to parquet. Sentinel codes (DTI=999, MI=999, Credit=9999) cleaned to NaN.
+
+    \vspace{0.6em}
+
+    \textbf{Train/test split.} By vintage --- train: $\leq$ 2014 (full crisis cycle); test: 2015--2019.
+
+\end{frame}
+
+% =========================================================================
+\section{A: Kaplan--Meier}
+% =========================================================================
+
+\begin{frame}{Part A --- Kaplan--Meier on the Full Population}
+
+    \textbf{No sampling: KM fit on all 31.7M loans.}
+
+    \begin{center}
+        \includegraphics[width=0.55\linewidth]{atod_plots/A_km_overall.pdf}
+    \end{center}
+
+    \textbf{All non-prepay outcomes pooled as right-censored} (cause-specific framing):\\
+    9.94M censored vs 21.75M events.
+
+\end{frame}
+
+\begin{frame}{Part A --- Hazards}
+
+    \begin{center}
+        \includegraphics[width=0.85\linewidth]{atod_plots/A_hazard_overall.pdf}
+    \end{center}
+
+    \textbf{Discrete monthly hazard:} ramps from $\approx$ 1\% at $t{=}6$ to $\approx$ 1.4\% at $t{=}12$, then plateaus at 1.5--1.7\%.
+    \textbf{Sanity check:} $-\log S_{\text{KM}}$ vs Nelson--Aalen cumulative hazard agree to within numerical precision.
+
+\end{frame}
+
+\begin{frame}{Part A --- Stratification by Vintage and FICO}
+
+    \begin{columns}[T,onlytextwidth]
+        \column{0.5\textwidth}
+        \begin{center}
+            \includegraphics[width=\linewidth]{atod_plots/A_km_by_vintage.pdf}
+        \end{center}
+        \small
+        \textbf{Vintage dominates.}
+        1999--2003: 96\% prepay, median 29 mo (post-2000 rate cuts).
+        2020+: only 16\% prepay, median undefined (high-rate environment).
+
+        \column{0.5\textwidth}
+        \begin{center}
+            \includegraphics[width=\linewidth]{atod_plots/A_km_by_fico.pdf}
+        \end{center}
+        \small
+        \textbf{FICO is monotone but modest.}
+        Prepay rate ranges from 78\% (sub-620) to 65\% (780+). Higher-FICO borrowers prepay less in proportion.
+
+    \end{columns}
+
+\end{frame}
+
+% =========================================================================
+\section{B: Cox PH}
+% =========================================================================
+
+\begin{frame}{Part B --- Cox PH with Origination Covariates}
+
+    \textbf{Base model.} 5\% sample (1.58M loans, 1.08M events), 15 origination covariates, lifelines + $\ell_2$ penalizer 0.001.
+
+    \textbf{Concordance index: 0.6257}.
+
+    \vspace{0.5em}
+
+    \begin{columns}[T,onlytextwidth]
+        \column{0.325\textwidth}
+        \textbf{Most important hazard ratios:}
+        \begin{itemize}\itemsep1pt
+            \small
+            \item \textbf{Original interest rate:} $1.58$
+            \item \textbf{Original UPB:} $1.29$
+            \item \textbf{Investment property:} $0.80$
+            \item \textbf{DTI missing:} $0.82$
+            \item \textbf{FICO:} $1.11$
+        \end{itemize}
+
+        \column{0.63\textwidth}
+        \vspace{-2em}
+        \begin{center}
+            \includegraphics[width=\linewidth]{atod_plots/B_hazard_ratios_base.pdf}
+        \end{center}
+
+    \end{columns}
+
+\end{frame}
+
+\begin{frame}{Part B --- Vintage-Macro Extension}
+
+    Macro covariates joined at \textbf{origination}. Concordance: 0.6428 ($\Delta C = +0.017$).
+
+    \vspace{0.5em}
+
+    \begin{columns}[T,onlytextwidth]
+        \column{0.35\textwidth}
+        \textbf{Macro hazard ratios:}
+        \begin{itemize}\itemsep1pt
+            \small
+            \item 10y Treasury: $0.78$
+            \item HPI (seasonally adj.): $0.89$
+            \item Unemployment: $0.89$
+            \item 30y mortgage rate: $0.94$
+        \end{itemize}
+
+        \vspace{0.5em}
+
+        \textbf{Caveat:} vintage-macro covariates capture the macro state \emph{when originated}, not time-varying through the loan's life.
+
+        \column{0.58\textwidth}
+        \vspace{-1.5em}
+        \begin{center}
+            \includegraphics[width=\linewidth]{atod_plots/B_hazard_ratios_macro.pdf}
+        \end{center}
+    \end{columns}
+
+\end{frame}
+
+\begin{frame}{Part B --- Proportional Hazards Diagnostic}
+
+    \textbf{Visual PH check: log-log Kaplan--Meier curves by FICO, LTV, and loan purpose.}
+    \vspace{-1em}
+    \begin{center}
+        \includegraphics[width=0.85\linewidth]{atod_plots/B_loglog_curves.pdf}
+    \end{center}
+    \vspace{-2em}
+    \begin{columns}[T,onlytextwidth]
+        \column{0.5\textwidth}
+        \begin{itemize}\itemsep2pt
+            \item $\log[-\log S(t)]$ vs $\log(t+1)$; under PH, curves should be parallel
+        \end{itemize}
+
+        \column{0.5\textwidth}
+        \begin{itemize}\itemsep2pt
+            \item Strata bend and converge/diverge over time --- covariate effects are time-varying, motivating ML/deep models
+        \end{itemize}
+
+    \end{columns}
+
+\end{frame}
+
+% =========================================================================
+\section{C: ML Models}
+% =========================================================================
+
+\begin{frame}{Part C --- ML Models for Horizon-Specific Prediction}
+
+    \textbf{Reframing.} For each horizon $T \in \{12, 24, 36, 60\}$:
+    \[
+        P(\text{prepaid by } T \mid X) \quad\text{as a binary classification.}
+    \]
+
+    \textbf{Setup:} 10\% sample, 1.85M train / 597k test, 68 features after one-hot. Same canonical split as Part D.
+
+    \textbf{Four models:}
+    \begin{itemize}\itemsep1pt
+        \item Logistic Regression ($\ell_2$, internal scaler)
+        \item Random Forest (200 trees)
+        \item LightGBM (with held-out-validation early stopping)
+        \item Cox baseline (lifelines, predict $1 - S(T \mid X)$)
+    \end{itemize}
+
+    \textbf{Evaluated:} AUC, Brier, log-loss, accuracy --- per model, per horizon, stratified by vintage and FICO.
+
+\end{frame}
+
+\begin{frame}{Part C --- Feature Importance (T=12)}
+
+    \begin{center}
+        \includegraphics[width=0.9\linewidth]{atod_plots/C_feature_importance_T12.pdf}
+    \end{center}
+    Top 15 predictors for each ML model at the T=12 horizon.
+
+\end{frame}
+
+\begin{frame}{Part C --- Score Distributions}
+
+    \begin{center}
+        \includegraphics[width=0.8\linewidth]{atod_plots/C_score_distributions.pdf}
+    \end{center}
+    Predicted prepayment probabilities at T=12 and T=60, by model and realized prepayment status.
+
+\end{frame}
+
+\begin{frame}{Part C --- Out-of-Sample AUC}
+
+    \begin{columns}[T,onlytextwidth]
+        \column{0.55\textwidth}
+        \begin{center}
+            \includegraphics[width=\linewidth]{atod_plots/C_auc_by_horizon.pdf}
+        \end{center}
+
+        \column{0.45\textwidth}
+        \small
+        \begin{tabular}{lcccc}
+            \toprule
+            Model  & T=12 & T=24 & T=36 & T=60 \\
+            \midrule
+            Cox    & 0.66 & 0.66 & 0.66 & 0.67 \\
+            RF     & 0.67 & 0.65 & 0.67 & 0.68 \\
+            LGBM   & 0.68 & 0.67 & 0.69 & 0.68 \\
+            LogReg & 0.69 & 0.67 & 0.68 & 0.70 \\
+            \bottomrule
+        \end{tabular}
+
+        \vspace{0.7em}
+        \normalsize
+        \textbf{Observations:}
+        \begin{itemize}\itemsep1pt
+            \item All four models in the 0.65--0.70 band
+            \item LogReg competitive, even best at T=12 and T=60
+            \item Marginal effects largely linear-additive
+        \end{itemize}
+
+    \end{columns}
+
+\end{frame}
+
+\begin{frame}{Part C --- Calibration and Top-Decile Lift}
+
+    \begin{columns}[T,onlytextwidth]
+        \column{0.5\textwidth}
+        \begin{center}
+            \includegraphics[width=\linewidth]{atod_plots/C_calibration.pdf}
+        \end{center}
+        \textbf{Calibration} is reasonable for all models.
+
+        \column{0.5\textwidth}
+        \begin{center}
+            \includegraphics[width=\linewidth]{atod_plots/C_top_decile_lift.pdf}
+        \end{center}
+
+        \textbf{Top-decile lift.} At T=12 the top decile catches 27.6\% prepayments (LightGBM) vs 10.75\% baseline $\to$ \textbf{lift = 2.57$\times$}.
+
+    \end{columns}
+
+\end{frame}
+
+% =========================================================================
+\section{D: Deep Cox}
+% =========================================================================
+
+\begin{frame}{Part D --- Deep Cox Architecture and Training}
+
+    \textbf{Model:} $\lambda(t \mid X) = \lambda_0(t) \cdot \exp\!\bigl(f_\theta(X)\bigr)$
+    where $f_\theta$ is a feed-forward network.
+
+    \vspace{0.5em}
+
+    \begin{columns}[T,onlytextwidth]
+        \column{0.5\textwidth}
+
+        \textbf{Architecture (DeepSurv-standard):}
+        \begin{itemize}\itemsep1pt
+            \item 3 hidden layers $\times$ 64 ReLU units
+            \item Batch normalization, dropout 0.1
+            \item 13{,}184 parameters
+        \end{itemize}
+
+        \textbf{Training:}
+        \begin{itemize}\itemsep1pt
+            \item Adam, $\eta = 10^{-3}$, batch 512
+            \item Up to 50 epochs, ES patience 8
+            \item Breslow baseline post-fit on full train
+        \end{itemize}
+
+        \column{0.5\textwidth}
+
+        \textbf{Linear baseline (D(v) ablation):}
+        \begin{itemize}\itemsep1pt
+            \item Same pycox infrastructure
+            \item \texttt{num\_nodes=[]} $\to$ no hidden layers
+            \item 68 parameters; functionally a SGD-fit classical Cox
+        \end{itemize}
+
+        \textbf{Why cleanest ablation:} same data, optimizer, baseline-hazard estimator --- only difference is depth.
+
+        \textbf{Runtime:} 17 min Deep + 1 min Linear on CPU.
+
+    \end{columns}
+
+\end{frame}
+
+\begin{frame}{Part D --- Linear vs Deep Ablation (D(v))}
+
+    \begin{columns}[T,onlytextwidth]
+        \column{0.55\textwidth}
+        \begin{center}
+            \includegraphics[width=\linewidth]{atod_plots/D_ablation_bars.pdf}
+        \end{center}
+
+        \column{0.45\textwidth}
+        \small
+        \begin{tabular}{rccc}
+            \toprule
+            $T$ & Linear & Deep   & $\Delta$AUC                \\
+            \midrule
+            12  & 0.6807 & 0.6837 & \textcolor{good}{$+0.003$} \\
+            24  & 0.6738 & 0.7007 & \textcolor{good}{$+0.027$} \\
+            36  & 0.6772 & 0.7211 & \textcolor{good}{$+0.044$} \\
+            60  & 0.6848 & 0.7292 & \textcolor{good}{$+0.045$} \\
+            \bottomrule
+        \end{tabular}
+
+        \vspace{1em}
+        \normalsize
+
+        \textbf{The gap widens monotonically with horizon.}
+
+        Sadhwani et al.\ (2021): nonlinear interactions accumulate over the loan's life.
+
+    \end{columns}
+
+\end{frame}
+
+\begin{frame}{Part D --- Head-to-Head with All Models}
+
+    \begin{columns}[T,onlytextwidth]
+        \column{0.55\textwidth}
+        \begin{center}
+            \includegraphics[width=\linewidth]{atod_plots/D_auc_by_horizon.pdf}
+        \end{center}
+
+        \column{0.45\textwidth}
+        \small
+        \begin{tabular}{lcccc}
+            \toprule
+            Model            & T=12         & T=24         & T=36         & T=60         \\
+            \midrule
+            Cox              & .66          & .66          & .66          & .67          \\
+            RF               & .67          & .65          & .67          & .68          \\
+            LGBM             & .68          & .67          & .69          & .68          \\
+            LinearCox        & .68          & .67          & .68          & .68          \\
+            LogReg           & .69          & .67          & .68          & .70          \\
+            \textbf{DeepCox} & \textbf{.68} & \textbf{.70} & \textbf{.72} & \textbf{.73} \\
+            \bottomrule
+        \end{tabular}
+
+        \vspace{0.8em}
+        \normalsize
+
+        \textbf{DeepCox is best at every horizon $\geq$ 24 months.}
+
+        At T=12 LogReg edges it --- short-horizon prepay dominated by easy cases.
+
+    \end{columns}
+
+\end{frame}
+
+\begin{frame}{Part D --- AUC by Vintage}
+
+    \begin{center}
+        \includegraphics[width=\linewidth]{atod_plots/D_auc_by_vintage.pdf}
+    \end{center}
+
+\end{frame}
+
+\begin{frame}{Why Deep Wins at Long Horizons}
+
+    \textbf{Linear assumption:} log-hazard is additive in covariate effects.
+    $$
+        \log \lambda(t \mid X) \;=\; \log \lambda_0(t) + \beta_1 x_1 + \beta_2 x_2 + \cdots
+    $$
+
+    \vspace{0.3em}
+
+    \textbf{Reality:} the refinancing decision at $T{=}36$ depends on FICO, balance, and rate environment \emph{jointly} --- non-trivial interactions.
+
+    \vspace{0.3em}
+
+    \textbf{At long horizons, more interaction paths matter.} The deep network captures them; the linear model collapses them. Hence the widening gap.
+
+    \vspace{0.3em}
+
+    \textbf{At T=12} only borrowers with very strong, singular incentive have prepaid --- easy cases for any model.
+
+    \vspace{0.5em}
+
+    \begin{center}
+        \textcolor{accent}{\textit{Same conclusion as Sadhwani--Giesecke--Sirignano (2021) on the much larger CoreLogic dataset.}}
+    \end{center}
+
+\end{frame}
+
+\begin{frame}{Part D --- Calibration and Top-Decile Lift}
+
+    \begin{columns}[T,onlytextwidth]
+        \column{0.5\textwidth}
+        \begin{center}
+            \includegraphics[width=\linewidth]{atod_plots/D_calibration.pdf}
+        \end{center}
+        \textbf{Calibration.} DeepCox close to diagonal at all horizons. LinearCox slightly under-confident.
+
+        \column{0.5\textwidth}
+        \begin{center}
+            \includegraphics[width=\linewidth]{atod_plots/D_top_decile_lift.pdf}
+        \end{center}
+
+        \textbf{Top-decile lift.}
+        \begin{itemize}\itemsep0pt
+            \small
+            \item T=24: DeepCox 2.08$\times$ vs LGBM 2.03$\times$
+            \item T=36: DeepCox 1.81$\times$ vs LGBM 1.77$\times$
+        \end{itemize}
+
+    \end{columns}
+
+\end{frame}
+
+\begin{frame}{Key Takeaways: Parts A--D}
+
+    \begin{enumerate}\itemsep4pt
+
+        \item \textbf{Mortgage prepayment is not a linear-in-covariates process.}
+              Schoenfeld test rejects PH for 12/15 covariates.
+
+        \item \textbf{Deep Cox AUC = 0.729 at T=60} vs 0.685 linear baseline ($\Delta = +0.045$). Gap grows with horizon.
+
+        \item \textbf{Tree models don't close the gap.} LightGBM tops out at 0.68--0.69. Interactions are smooth-and-multivariate (good for MLPs) rather than coarse-and-axis-aligned.
+
+        \item \textbf{Logistic regression is competitive at T=12.} When prepayment concentrates in an obvious refi tail, marginal effects suffice.
+
+        \item \textbf{Vintage-macro covariates earn their place.} Cox concordance jumps from 0.626 to 0.643 from FRED data alone.
+
+    \end{enumerate}
+
 \end{frame}
 
 % =========================================================================
@@ -179,12 +652,10 @@
         \vspace{0.4em}
         \small
         $\mathcal{R}(t_i)$: all loans still active just before $t_i$.\\[3pt]
-        Competing-cause exits are \textbf{censored} --- they leave
-        $\mathcal{R}(t)$ without contributing to $\ell$.
+        Competing-cause exits are \textbf{censored} --- they leave $\mathcal{R}(t)$ without contributing to $\ell$.
 
         \column{0.42\textwidth}
         \small\vspace{0.4em}
-
         \normalsize\textbf{Additional features}\\[6pt]
         \small
         \textbf{Max Delinquency} --- months past due over loan life\\[6pt]
@@ -260,8 +731,7 @@
         \begin{block}{Standard Cox (11 features)}
         \small\vspace{2pt}
         One row per loan; all covariates fixed at origination.
-        Cannot track rate cycles, burnout, or equity build
-        after origination.
+        Cannot track rate cycles, burnout, or equity build after origination.
         \vspace{2pt}
         \end{block}
 
@@ -270,9 +740,8 @@
         \begin{block}{Andersen--Gill (13 features)}
         \small\vspace{2pt}
         One row per loan-month; $\mathbf{x}_i(t)$ updated each period.
-        Extends the same static base with the four time-varying
-        features, tracking the full path of rate incentive and
-        equity. 100K loans $\times$ ${\sim}47$ months $= 4.68$M intervals.
+        Extends the same static base with four time-varying
+        features. 100K loans $\times$ ${\sim}47$ months $= 4.68$M intervals.
         \vspace{2pt}
         \end{block}
 
@@ -286,13 +755,13 @@
             \textbf{Feature} & \textbf{What it captures} \\
             \midrule
             \addlinespace[2pt]
-            \texttt{rate\_incentive} & $r_{\text{orig}}{-}r_{\text{mkt}}(t)$: live option value to refinance; tracks rate cycles and burnout \\
+            \texttt{rate\_incentive} & $r_{\text{orig}}{-}r_{\text{mkt}}(t)$: live option value to refinance \\
             \addlinespace[4pt]
-            \texttt{ELTV}            & equity from amortisation and HPI gains; high ELTV suppresses refi \\
+            \texttt{ELTV}            & equity from amortisation and HPI gains \\
             \addlinespace[4pt]
-            \texttt{unemployment}    & macro labour cycle; proxies Fed easing in high-unemp periods \\
+            \texttt{unemployment}    & macro labour cycle \\
             \addlinespace[4pt]
-            \texttt{hpi\_yoy}        & home-price appreciation unlocking cash-out refinancing \\
+            \texttt{hpi\_yoy}        & home-price appreciation unlocking cash-out refi \\
             \addlinespace[2pt]
             \bottomrule
         \end{tabular}
@@ -311,24 +780,22 @@
     \]
     \small
     $\mathbf{x}_i(t)$ is the \textbf{current} covariate vector, updated each month.
-    $\boldsymbol{\beta}$ is a single coefficient vector estimated across all loan-months.
 
     \medskip
-    \normalsize\textbf{Log partial likelihood} \quad (maximised to obtain $\hat{\boldsymbol{\beta}}$)
+    \normalsize\textbf{Log partial likelihood}
     \[
         \ell(\boldsymbol{\beta}) \;=\;
         \sum_{i:\,\delta_i=1}
         \Biggl[
-            \underbrace{\boldsymbol{\beta}^\top \mathbf{x}_i(t_i)}_{\substack{\text{log-score of}\\\text{the prepaying loan}}}
+            \boldsymbol{\beta}^\top \mathbf{x}_i(t_i)
             \;-\;\log
-            \underbrace{\sum_{j \in \mathcal{R}(t_i)}
-            \exp\!\bigl(\boldsymbol{\beta}^\top \mathbf{x}_j(t_i)\bigr)}_{\substack{\text{sum over all loan-months}\\\text{active at }t_i}}
+            \sum_{j \in \mathcal{R}(t_i)}
+            \exp\!\bigl(\boldsymbol{\beta}^\top \mathbf{x}_j(t_i)\bigr)
         \Biggr]
     \]
     \small
     At each event: \textit{given a prepayment at $t_i$, what is the probability it was loan $i$
     rather than any other active loan?}
-    Maximising $\ell$ estimates $\hat{\boldsymbol{\beta}}$ without specifying $h_0(t)$.
 
 \end{frame}
 
@@ -339,7 +806,7 @@
     \vspace{-0.5em}
     \begin{center}
         \small
-        Static Cox uses only month-0 values --- Andersen-Gill tracks these every month.
+        Static Cox uses only month-0 values --- Andersen--Gill tracks these every month.
     \end{center}
 \end{frame}
 
@@ -393,7 +860,7 @@
 \end{frame}
 
 % =========================================================================
-\section{E(iii): Neural Survival Models}
+\section{E(iii): Neural Survival}
 % =========================================================================
 
 \begin{frame}
@@ -443,8 +910,8 @@
         \small
         \begin{itemize}\itemsep4pt
             \item \textbf{LSTM} --- vanishing gradients at $T{=}120$; attends only to adjacent months; hard to interpret
-            \item \textbf{Single-context head} --- no time index in head; near-constant hazard curve; gradient flows only through last hidden state
-            \item \textbf{Two separate models} --- violates independent censoring (defaulted loans are riskiest borrowers, not random exits); loses shared macro signal
+            \item \textbf{Single-context head} --- near-constant hazard curve; gradient flows only through last hidden state
+            \item \textbf{Two separate models} --- violates independent censoring; loses shared macro signal
         \end{itemize}
         \end{alertblock}
 
@@ -452,9 +919,9 @@
         \begin{block}{Why this combination}
         \small
         \begin{itemize}\itemsep4pt
-            \item \textbf{Causal Transformer} --- reaches any past month in one attention step; gradient flows through every position; weights are interpretable
-            \item \textbf{Per-timestep head} --- $\lambda(t){=}\text{head}(h_t)$: hazard conditioned on full causal history $\mathbf{x}_1\!\dots\mathbf{x}_t$; every month trained independently
-            \item \textbf{Joint encoder} --- shared representation captures that the same macro shock raises default and suppresses prepayment; chain product enforces $\text{CIF}_1{+}\text{CIF}_2{+}S{=}1$
+            \item \textbf{Causal Transformer} --- reaches any past month in one attention step; weights are interpretable
+            \item \textbf{Per-timestep head} --- $\lambda(t){=}\text{head}(h_t)$: hazard conditioned on full causal history $\mathbf{x}_1\!\dots\mathbf{x}_t$
+            \item \textbf{Joint encoder} --- chain product enforces $\text{CIF}_1{+}\text{CIF}_2{+}S{=}1$
         \end{itemize}
         \end{block}
     \end{columns}
@@ -504,8 +971,6 @@
             Data   & 101K loans, 4.5M rows \\
             Epochs & 41 \;(best ep.\,29) \\
             LR     & $3\!\times\!10^{-4}$, cosine \\
-            Loss   & $11.30 \to 11.28$ \\
-            Rank   & $1.97 \to 1.84$ \\
         \end{tabular}
         \end{block}
 
@@ -520,7 +985,7 @@
     \end{columns}
 \end{frame}
 
-\begin{frame}{Training dynamics: Negative Log Likelihood collapse and ranking loss.}
+\begin{frame}{Training dynamics: NLL collapse and ranking loss.}
     \begin{center}
         \includegraphics[width=0.88\linewidth]{processed/Eiii_training_curves}
     \end{center}
@@ -532,19 +997,6 @@
     \end{itemize}
 \end{frame}
 
-\begin{frame}{Gradient sensitivity by cause.}
-    \begin{center}
-        \includegraphics[width=0.84\linewidth]{processed/Eiii_gradient_sensitivity}
-    \end{center}
-    \vspace{-0.4em}
-    \begin{center}
-        \small
-        \textcolor{bad}{Red} = time-varying features. \quad \textcolor{accent}{Blue} = static features.\\
-        Dynamic features rank above static for prepayment; 
-        
-        FICO and unemployment lead for default; consistent with cause-specific Cox in E(i).
-    \end{center}
-\end{frame}
 
 \begin{frame}{Feature importance over the loan lifecycle.}
     \begin{center}
@@ -553,8 +1005,7 @@
     \vspace{-0.4em}
     \begin{center}
         \small
-        \texttt{rate\_incentive} and \texttt{Mortgage rate} dominates, especially in early months; 
-  
+        \texttt{rate\_incentive} dominates, especially in early months; current LTV rises later as equity accumulates.
     \end{center}
 \end{frame}
 
@@ -595,9 +1046,8 @@
 \begin{frame}{Key Takeaways: E(iii)}
     \begin{enumerate}\itemsep14pt
         \item Default AUC matches DeepCox with $6\times$ fewer training loans.
-        \item Gradient sensitivity replicates Cox findings: rate incentive drives prepayment, FICO drives default.
         \item Feature importance shifts over the loan lifecycle --- unique to sequence models.
-        \item \textbf{Limitation: defaults are rare (1.6\%), so the model learns to predict near-zero hazard for everyone --- AUC is preserved but absolute probabilities are unreliable; fix via focal-loss upweighting.}
+        \item \textbf{Limitation: 1.6\% event rate causes NLL collapse --- AUC is preserved but absolute probabilities are unreliable; fix via focal-loss upweighting.}
     \end{enumerate}
 \end{frame}
 
@@ -630,9 +1080,7 @@
         \Delta\log h(t) = \hat\beta_{\text{ri}} \times \frac{-\Delta r}{100},
         \qquad \hat\beta_{\text{ri}} = 0.041 \text{ (HR} = 1.042 \text{ per 100\,bp)}
     \]
-    The calibrated baseline hazard $\hat{H}_0(t)$ produces realistic $S(t)$, CPR, WAL,
-    and price --- no approximation needed.\\[6pt]
-
+    The calibrated baseline hazard $\hat{H}_0(t)$ produces realistic $S(t)$, CPR, WAL, and price.\\[6pt]
     \end{block}
     \vspace{0.8em}
     \begin{center}
@@ -649,8 +1097,8 @@
     \vspace{-0.4em}
     \begin{center}
         \small
-        Each 100\,bp rate cut increases the prepayment hazard by 4.2\%; a 300\,bp cut raises it by $+0.123$ in log terms.\\
-        The model response matches the closed-form prediction exactly --- no simulation needed, fully auditable.
+        Each 100\,bp rate cut increases prepayment hazard by 4.2\%; a 300\,bp cut raises it by $+0.123$ in log terms.\\
+        Model response matches the closed-form prediction exactly --- no simulation needed, fully auditable.
     \end{center}
 \end{frame}
 
@@ -679,8 +1127,7 @@
     \end{columns}
 \end{frame}
 
-
-\begin{frame}{MBS: Weighted Average Life, MBS price, and negative convexity.}
+\begin{frame}{MBS: Weighted Average Life, price, and negative convexity.}
     \begin{columns}[c,onlytextwidth]
         \column{0.60\textwidth}
         \begin{center}
@@ -704,30 +1151,45 @@
         \end{tabular}
         \vspace{0.4em}
 
-        \textbf{Negative convexity}: when rates fall, borrowers prepay and return principal \emph{at par}, capping price upside. Price gain ($-300$\,bp: \$9.25) $<$ loss ($+300$\,bp: \$9.30).\\[4pt]
+        \textbf{Negative convexity}: when rates fall, borrowers prepay at par, capping price upside. Gain ($-300$\,bp: \$9.25) $<$ loss ($+300$\,bp: \$9.30).\\[4pt]
         MC: 200 paths, $\sigma{=}25$\,bp.
     \end{columns}
 \end{frame}
 
 \begin{frame}{Key Takeaways: E(iv)}
     \begin{enumerate}\itemsep12pt
+        \item \textbf{Static models give the wrong direction --- time-varying covariates are required for rate scenario analysis.}
         \item \textbf{TV Cox has a linear rate channel}: every 100\,bp rate cut adds the same $+4.2\%$ to prepayment hazard --- equal steps in rate produce equal steps in response, making results predictable and fully explainable.
         \item \textbf{Negative convexity confirmed}: when rates fall, borrowers prepay at par, capping price upside (\$9.25 gain $<$ \$9.30 loss at $\pm$300\,bp).
+        \item \textbf{FICO and LTV effects are real but require more data to surface --- rate incentive dominates in this specification.}
     \end{enumerate}
 \end{frame}
 
-% ---- Final thank you -------------------------------------------------------
+% ---- Final Thank You ------------------------------------------------------
 \begin{frame}[plain]
-    \vspace*{2em}
+    \vspace*{1.5em}
     \begin{center}
-        {\Huge \textbf{Thank you}}\\[1.5em]
-        {\Large Questions?}\\[2.5em]
-        \small
-        Andersen \& Gill (1982) \textit{Ann.\ Stat.}\enspace$\cdot$\enspace
-        Fine \& Gray (1999) \textit{JASA}\enspace$\cdot$\enspace
-        Lee et al.\ (2018) \textit{DeepHit}\enspace$\cdot$\enspace
-        Sadhwani et al.\ (2021) \textit{J.\ Fin.\ Econometrics}\enspace$\cdot$\enspace
-        BCBS (2019)
+        {\Huge \textbf{Thank you}}
+
+        \vspace{1.5em}
+
+        {\Large Questions?}
+
+        \vspace{2.5em}
+
+        \begin{minipage}{0.8\textwidth}
+            \centering
+            \small
+            \textbf{References}\\[0.5em]
+            Sadhwani, Giesecke, Sirignano (2021), \emph{J.\ Financial Econometrics}\\
+            Katzman et al.\ (2018), DeepSurv, \emph{BMC Medical Research Methodology}\\
+            Kvamme et al.\ (2019), pycox, \emph{JMLR}\\
+            Andersen \& Gill (1982), \emph{Ann.\ Stat.}\enspace$\cdot$\enspace
+            Fine \& Gray (1999), \emph{JASA}\\
+            Lee et al.\ (2018), DeepHit\enspace$\cdot$\enspace
+            Davidson-Pilon (2019), lifelines, \emph{JOSS}\\
+            BCBS (2019)
+        \end{minipage}
     \end{center}
 \end{frame}
 
