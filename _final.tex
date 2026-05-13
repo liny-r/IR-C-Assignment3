@@ -29,11 +29,27 @@
 \setbeamertemplate{itemize subitem}{\textcolor{accent}{$\circ$}}
 \setbeamertemplate{navigation symbols}{}
 
+% Show current section in bottom-centre footer
+\setbeamertemplate{footline}{
+  \leavevmode%
+  \hbox{%
+  \begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,center]{author in head/foot}%
+    \usebeamerfont{author in head/foot}\insertshortauthor
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,center]{title in head/foot}%
+    \usebeamerfont{title in head/foot}\insertsection
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,right]{date in head/foot}%
+    \usebeamerfont{date in head/foot}\insertshortdate{}\hspace*{2em}%
+    \insertframenumber{} / \inserttotalframenumber\hspace*{2ex}
+  \end{beamercolorbox}}%
+  \vskip0pt%
+}
+
 % ---------- Title ----------
 \title{Mortgage Prepayment Risk Modeling}
 \subtitle{KM \& Cox $\cdot$ ML \& Deep Learning $\cdot$ Competing Risks $\cdot$ Neural Survival $\cdot$ Scenario Analysis}
 \author{R.\ Lin\enspace$\cdot$\enspace P.\ Smalhout\enspace$\cdot$\enspace D.\ Tuzes}
-\institute{IR and Credit\enspace$\cdot$\enspace MTH 9877\enspace$\cdot$\enspace Baruch College, Spring 2026}
 \date{May 13, 2026}
 
 % =========================================================================
@@ -43,6 +59,8 @@
 \begin{frame}[plain]
     \titlepage
 \end{frame}
+
+\section{Introduction}
 
 % ---- Project Scope -------------------------------------------------------
 \begin{frame}{Project Scope}
@@ -1191,6 +1209,52 @@
             BCBS (2019)
         \end{minipage}
     \end{center}
+\end{frame}
+
+% =========================================================================
+\appendix
+% =========================================================================
+
+\begin{frame}{Appendix: Sampling Summary by Part}
+    \small
+    \begin{tabular}{p{1.0cm}p{3.2cm}p{3.2cm}p{5.0cm}}
+        \toprule
+        \textbf{Part} & \textbf{Sample} & \textbf{Train / Test} & \textbf{Notes} \\
+        \midrule
+        A
+          & Full 31.7M loans
+          & N/A
+          & No sampling; KM fit on entire population \\[4pt]
+        B
+          & 5\% $\approx$ 1.58M loans
+          & Vintage split ($\leq$2014 / 2015--2019)
+          & 1.08M events; PH diagnostic on 158K subsample \\[4pt]
+        C
+          & 10\% $\approx$ 2.45M loans
+          & 1.85M train / 597K test
+          & 68 one-hot features; same canonical split as D \\[4pt]
+        D
+          & Same 10\% as C
+          & 1.66M inner train / 185K val / 597K test
+          & Extra 10\% val carve for early stopping \\[4pt]
+        E(i)
+          & Full survival table
+          & Same vintage split
+          & Competing-risk labels: prepay=1, default=2, censored=0 \\[4pt]
+        E(ii)
+          & 100K panel loans
+          & Same vintage split
+          & ${\sim}47$ mo avg $= 4.68$M loan-month intervals \\[4pt]
+        E(iii)
+          & 101K panel loans
+          & 80K train / 21K test (stratified)
+          & 60K prepay + 31K default + 35K censored; drawn from 2M panel loans with monthly history; 4.5M rows \\[4pt]
+        E(iv)
+          & Same as E(ii)
+          & Same as E(ii)
+          & TV Cox model re-used; 200-path Monte Carlo for MBS pricing \\
+        \bottomrule
+    \end{tabular}
 \end{frame}
 
 \end{document}
