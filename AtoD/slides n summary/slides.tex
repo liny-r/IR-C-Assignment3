@@ -150,21 +150,19 @@
     \vspace{0.5em}
 
     \begin{columns}[T,onlytextwidth]
-        \column{0.55\textwidth}
-        \textbf{Largest hazard ratios:}
+        \column{0.325\textwidth}
+        \textbf{Most important hazard ratios:}
         \begin{itemize}\itemsep1pt
             \small
-            \item \textbf{Original interest rate} (z): $\text{HR} = 1.58$ \\
-                  \textit{the dominant driver --- high-rate borrowers refi when rates fall}
-            \item \textbf{Original UPB} (z): $\text{HR} = 1.29$
-            \item \textbf{Investment property}: $\text{HR} = 0.80$ \\
-                  \textit{investors prepay less}
-            \item \textbf{DTI missing}: $\text{HR} = 0.82$ \\
-                  \textit{Relief Refinance flag (FAQ Q67)}
-            \item \textbf{FICO} (z): $\text{HR} = 1.11$
+            \item \textbf{Original interest rate} $1.58$
+            \item \textbf{Original Unpaid Principal Balance}: $1.29$
+            \item \textbf{Investment property}: $0.80$
+            \item \textbf{DTI missing}: $0.82$
+            \item \textbf{FICO}: $1.11$
         \end{itemize}
 
-        \column{0.42\textwidth}
+        \column{0.63\textwidth}
+        \vspace{-2em}
         \begin{center}
             \includegraphics[width=\linewidth]{plots/B_hazard_ratios_base.pdf}
         \end{center}
@@ -176,28 +174,27 @@
 % ============================================================ Slide 9: Part B macro extension
 \begin{frame}{Part B --- Vintage-Macro Extension}
 
-    \textbf{Macro covariates joined at \texttt{FirstPaymentDate}} (origination): MortgageRate, 10y Treasury, Unemployment, HPI YoY.
-
-    \textbf{Concordance: 0.6428 ($\Delta C = +0.017$, $\Delta\text{AIC} = -28{,}510$).}
+    Macro covariates joined at \textbf{origination}. Concordance: 0.6428 ($\Delta C = +0.017$).
 
     \vspace{0.5em}
 
     \begin{columns}[T,onlytextwidth]
-        \column{0.55\textwidth}
+        \column{0.35\textwidth}
         \textbf{Macro hazard ratios:}
         \begin{itemize}\itemsep1pt
             \small
-            \item \textbf{10y Treasury at origination}: $\text{HR} = 0.78$
-            \item \textbf{HPI YoY at origination}: $\text{HR} = 0.89$
-            \item \textbf{Unemployment at origination}: $\text{HR} = 0.89$
-            \item \textbf{30y mortgage rate at origination}: $\text{HR} = 0.94$
+            \item 10y Treasury: $0.78$
+            \item house pricing index (seasonally adjusted): $0.89$
+            \item Unemployment: $0.89$
+            \item market average 30y mortgage rate: $0.94$
         \end{itemize}
 
         \vspace{0.5em}
 
-        \textbf{Caveat:} these are vintage-macro covariates --- the macro state \emph{when the loan was originated}, not time-varying through the loan's life. A truly dynamic Cox would need the loan-month panel.
+        \textbf{Caveat:} these are vintage-macro covariates -- the macro state \emph{when the loan was originated}, not time-varying through the loan's life. A truly dynamic Cox would need the loan-month panel.
 
-        \column{0.42\textwidth}
+        \column{0.58\textwidth}
+        \vspace{-1.5em}
         \begin{center}
             \includegraphics[width=\linewidth]{plots/B_hazard_ratios_macro.pdf}
         \end{center}
@@ -208,20 +205,25 @@
 % ============================================================ Slide 10: Part B PH diagnostics
 \begin{frame}{Part B --- Proportional Hazards Diagnostic}
 
-    \textbf{Schoenfeld residual test rejects PH for 12 of 15 covariates at $\alpha = 0.05$.}
-
+    \textbf{Visual PH check: log-log Kaplan--Meier curves by FICO, LTV, and loan purpose.}
+    \vspace{-1em}
+    \begin{center}
+        \includegraphics[width=0.85\linewidth]{plots/B_loglog_curves.pdf}
+    \end{center}
+    \vspace{-2em}
     \begin{columns}[T,onlytextwidth]
-        \column{0.55\textwidth}
-        \begin{center}
-            \includegraphics[width=\linewidth]{plots/B_ph_test.pdf}
-        \end{center}
-        \column{0.45\textwidth}
-        \textbf{Why this matters.}
+        \column{0.5\textwidth}
 
         \begin{itemize}\itemsep2pt
-            \item Standard finding on mortgage data; this is the principal motivation for moving beyond Cox.
-            \item PH violation means the hazard ratio for, say, FICO is \emph{not constant} over the life of the loan --- the relative effect of credit quality on prepayment behaves differently at year 1 vs year 5.
-            \item Linear models can't represent this. Tree-based and deep models can, by interacting features with loan age.
+            \item Kaplan--Meier survival $S(t)$ for time to prepayment stratified by FICO, LTV, and purpose
+            \item Plotted $\log[-\log S(t)]$ against $\log(t+1)$. Under prop haz., curves should be parallel.
+        \end{itemize}
+
+        \column{0.5\textwidth}
+
+        \begin{itemize}\itemsep2pt
+            \item gaps are not constant over loan age; several strata bend and converge/diverge over time
+            \item prepayment covariate effects are time-varying, motivating age interactions and ML/deep models
         \end{itemize}
 
     \end{columns}
@@ -250,7 +252,32 @@
 
     \textbf{Evaluated:} AUC, Brier, log-loss, accuracy --- per model, per horizon, stratified by vintage and FICO.
 
+
 \end{frame}
+
+% ============================================================ Slide 12: Part C score distributions & feature importance
+\begin{frame}{Part C --- Score Distributions and Feature Importance}
+
+    \begin{center}
+        \includegraphics[width=0.9\linewidth]{plots/C_feature_importance_T12.pdf}
+    \end{center}
+    The feature-importance plot reports the top 15 predictors for each ML model at the T=12 horizon.
+
+
+\end{frame}
+
+% ============================================================ Slide 12: Part C score distributions & feature importance
+\begin{frame}{Part C --- Score Distributions and Feature Importance}
+
+
+    \begin{center}
+        \includegraphics[width=0.8\linewidth]{plots/C_score_distributions.pdf}
+    \end{center}
+    The score-distribution plot shows predicted prepayment probabilities for T=12 and T=60, separated by model and realized prepayment status.
+
+
+\end{frame}
+
 
 % ============================================================ Slide 12: Part C AUC
 \begin{frame}{Part C --- Out-of-Sample AUC}
@@ -296,7 +323,7 @@
         \begin{center}
             \includegraphics[width=\linewidth]{plots/C_calibration.pdf}
         \end{center}
-        \textbf{Calibration} is reasonable for all models. LightGBM and LogReg sit closest to the diagonal; Cox is slightly under-confident at the high end.
+        \textbf{Calibration} is reasonable for all models
 
         \column{0.5\textwidth}
         \begin{center}
@@ -479,25 +506,25 @@
 
 \end{frame}
 
-% ============================================================ Slide 19: Limitations
-\begin{frame}{Limitations and Future Work}
+% ============================================================ Slide 19: Limitations  -- removed
+% \begin{frame}{Limitations and Future Work}
 
-    \textbf{What this study didn't do:}
-    \begin{enumerate}\itemsep2pt
-        \item \textbf{Time-varying covariates.}  Macro covariates are joined at origination only. A truly dynamic Cox would join the current rate environment, current LTV (HPI-updated), current unemployment --- but requires the loan-month panel ($\sim$3.5B rows).
-        \item \textbf{Competing risks.}  We use cause-specific censoring for prepayment. A multi-output network jointly modeling prepay, default, and survival (Fine--Gray subdistribution hazards or multi-state) would be more complete.
-        \item \textbf{Mini-batch Cox sensitivity.}  Risk sets are batch-local; a sensitivity check across batch sizes 256/512/1024/2048 would strengthen the conclusions. Standard practice in DeepSurv literature, but worth verifying.
-        \item \textbf{Distribution shift.}  Vintage-based train/test split means the test set sees a different rate environment than train. Honest --- but the absolute AUCs reflect distribution shift, not just model capacity.
-    \end{enumerate}
+%     \textbf{What this study didn't do:}
+%     \begin{enumerate}\itemsep2pt
+%         \item \textbf{Time-varying covariates.}  Macro covariates are joined at origination only. A truly dynamic Cox would join the current rate environment, current LTV (HPI-updated), current unemployment --- but requires the loan-month panel ($\sim$3.5B rows).
+%         \item \textbf{Competing risks.}  We use cause-specific censoring for prepayment. A multi-output network jointly modeling prepay, default, and survival (Fine--Gray subdistribution hazards or multi-state) would be more complete.
+%         \item \textbf{Mini-batch Cox sensitivity.}  Risk sets are batch-local; a sensitivity check across batch sizes 256/512/1024/2048 would strengthen the conclusions. Standard practice in DeepSurv literature, but worth verifying.
+%         \item \textbf{Distribution shift.}  Vintage-based train/test split means the test set sees a different rate environment than train. Honest --- but the absolute AUCs reflect distribution shift, not just model capacity.
+%     \end{enumerate}
 
-    \textbf{Natural extensions:}
-    \begin{itemize}\itemsep1pt
-        \item Time-dependent covariates via loan-month panel
-        \item Recurrent or attention-based survival models
-        \item Interest-rate scenario analysis using the trained model
-    \end{itemize}
+%     \textbf{Natural extensions:}
+%     \begin{itemize}\itemsep1pt
+%         \item Time-dependent covariates via loan-month panel
+%         \item Recurrent or attention-based survival models
+%         \item Interest-rate scenario analysis using the trained model
+%     \end{itemize}
 
-\end{frame}
+% \end{frame}
 
 % ============================================================ Slide 20: What we learned
 \begin{frame}{Key Takeaways}
@@ -531,7 +558,6 @@
         \vspace{0.5em}
 
         \textbf{Subsamples and splits:}
-        \scriptsize
         \begin{tabular}{p{0.22\linewidth}p{0.70\linewidth}}
             Part A & Full 31.69M-loan population; no sampling.                                        \\
             Part B & 5\% Cox sample: 1.58M loans, 1.08M events; PH diagnostic uses 158k rows.         \\
