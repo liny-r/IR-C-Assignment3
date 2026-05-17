@@ -118,7 +118,7 @@
     \textbf{No sampling: KM fit on all 31.7M loans.}
 
     \begin{center}
-        \includegraphics[width=0.55\linewidth]{atod_plots/A_km_overall.pdf}
+        \includegraphics[width=0.55\linewidth]{figures/A_km_overall.pdf}
     \end{center}
 
     \textbf{All non-prepay outcomes pooled as right-censored} (cause-specific framing):\\
@@ -129,7 +129,7 @@
 \begin{frame}{Part A --- Hazards}
 
     \begin{center}
-        \includegraphics[width=0.85\linewidth]{atod_plots/A_hazard_overall.pdf}
+        \includegraphics[width=0.85\linewidth]{figures/A_hazard_overall.pdf}
     \end{center}
 
     \textbf{Discrete monthly hazard:} ramps from $\approx$ 1\% at $t{=}6$ to $\approx$ 1.4\% at $t{=}12$, then plateaus at 1.5--1.7\%.
@@ -142,7 +142,7 @@
     \begin{columns}[T,onlytextwidth]
         \column{0.5\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{atod_plots/A_km_by_vintage.pdf}
+            \includegraphics[width=\linewidth]{figures/A_km_by_vintage.pdf}
         \end{center}
         \small
         \textbf{Vintage dominates.}
@@ -151,7 +151,7 @@
 
         \column{0.5\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{atod_plots/A_km_by_fico.pdf}
+            \includegraphics[width=\linewidth]{figures/A_km_by_fico.pdf}
         \end{center}
         \small
         \textbf{FICO is monotone but modest.}
@@ -188,7 +188,7 @@
         \column{0.63\textwidth}
         \vspace{-2em}
         \begin{center}
-            \includegraphics[width=\linewidth]{atod_plots/B_hazard_ratios_base.pdf}
+            \includegraphics[width=\linewidth]{figures/B_hazard_ratios_base.pdf}
         \end{center}
 
     \end{columns}
@@ -219,7 +219,7 @@
         \column{0.58\textwidth}
         \vspace{-1.5em}
         \begin{center}
-            \includegraphics[width=\linewidth]{atod_plots/B_hazard_ratios_macro.pdf}
+            \includegraphics[width=\linewidth]{figures/B_hazard_ratios_macro.pdf}
         \end{center}
     \end{columns}
 
@@ -230,7 +230,7 @@
     \textbf{Visual PH check: log-log Kaplan--Meier curves by FICO, LTV, and loan purpose.}
     \vspace{-1em}
     \begin{center}
-        \includegraphics[width=0.85\linewidth]{atod_plots/B_loglog_curves.pdf}
+        \includegraphics[width=0.85\linewidth]{figures/B_loglog_curves.pdf}
     \end{center}
     \vspace{-2em}
     \begin{columns}[T,onlytextwidth]
@@ -276,7 +276,7 @@
 \begin{frame}{Part C --- Feature Importance (T=12)}
 
     \begin{center}
-        \includegraphics[width=0.9\linewidth]{atod_plots/C_feature_importance_T12.pdf}
+        \includegraphics[width=0.9\linewidth]{figures/C_feature_importance_T12.pdf}
     \end{center}
     Top 15 predictors for each ML model at the T=12 horizon.
 
@@ -285,7 +285,7 @@
 \begin{frame}{Part C --- Score Distributions}
 
     \begin{center}
-        \includegraphics[width=0.8\linewidth]{atod_plots/C_score_distributions.pdf}
+        \includegraphics[width=0.8\linewidth]{figures/C_score_distributions.pdf}
     \end{center}
     Predicted prepayment probabilities at T=12 and T=60, by model and realized prepayment status.
 
@@ -296,7 +296,7 @@
     \begin{columns}[T,onlytextwidth]
         \column{0.55\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{atod_plots/C_auc_by_horizon.pdf}
+            \includegraphics[width=\linewidth]{figures/C_auc_by_horizon.pdf}
         \end{center}
 
         \column{0.45\textwidth}
@@ -330,13 +330,13 @@
     \begin{columns}[T,onlytextwidth]
         \column{0.5\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{atod_plots/C_calibration.pdf}
+            \includegraphics[width=\linewidth]{figures/C_calibration.pdf}
         \end{center}
         \textbf{Calibration} is reasonable for all models.
 
         \column{0.5\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{atod_plots/C_top_decile_lift.pdf}
+            \includegraphics[width=\linewidth]{figures/C_top_decile_lift.pdf}
         \end{center}
 
         \textbf{Top-decile lift.} At T=12 the top decile catches 27.6\% prepayments (LightGBM) vs 10.75\% baseline $\to$ \textbf{lift = 2.57$\times$}.
@@ -395,7 +395,7 @@
     \begin{columns}[T,onlytextwidth]
         \column{0.55\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{atod_plots/D_ablation_bars.pdf}
+            \includegraphics[width=\linewidth]{figures/D_ablation_bars.pdf}
         \end{center}
 
         \column{0.45\textwidth}
@@ -427,7 +427,7 @@
     \begin{columns}[T,onlytextwidth]
         \column{0.55\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{atod_plots/D_auc_by_horizon.pdf}
+            \includegraphics[width=\linewidth]{figures/D_auc_by_horizon.pdf}
         \end{center}
 
         \column{0.45\textwidth}
@@ -459,7 +459,7 @@
 \begin{frame}{Part D --- AUC by Vintage}
 
     \begin{center}
-        \includegraphics[width=\linewidth]{atod_plots/D_auc_by_vintage.pdf}
+        \includegraphics[width=\linewidth]{figures/D_auc_by_vintage.pdf}
     \end{center}
 
 \end{frame}
@@ -496,13 +496,13 @@
     \begin{columns}[T,onlytextwidth]
         \column{0.5\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{atod_plots/D_calibration.pdf}
+            \includegraphics[width=\linewidth]{figures/D_calibration.pdf}
         \end{center}
         \textbf{Calibration.} DeepCox close to diagonal at all horizons. LinearCox slightly under-confident.
 
         \column{0.5\textwidth}
         \begin{center}
-            \includegraphics[width=\linewidth]{atod_plots/D_top_decile_lift.pdf}
+            \includegraphics[width=\linewidth]{figures/D_top_decile_lift.pdf}
         \end{center}
 
         \textbf{Top-decile lift.}

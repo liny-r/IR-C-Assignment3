@@ -7,12 +7,11 @@ processed/*.parquet
 
 # Large data files
 samples/
-AtoD/survival_table.parquet
-AtoD/results_cd/C_predictions.parquet
-AtoD/results_cd/D_predictions.parquet
-AtoD/results_cd/canonical_split.parquet
-AtoD/results_cd/canonical_split_with_val.parquet
-AtoD/__pycache__/
+survival_table.parquet
+results_cd/C_predictions.parquet
+results_cd/D_predictions.parquet
+results_cd/canonical_split.parquet
+results_cd/canonical_split_with_val.parquet
 __pycache__/
 
 # LaTeX build artifacts
@@ -26,4 +25,10 @@ __pycache__/
 *.fls
 *.synctex.gz
 *.xdv
-AtoD/slides n summary/slides.pdf
+
+# Word lock files
+~$*
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+

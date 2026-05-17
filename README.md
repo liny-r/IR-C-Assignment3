@@ -1,183 +1,154 @@
 # MTH9877 — Assignment 3: Mortgage Prepayment & Credit Risk Modeling
 
-**Course:** MTH9877 Interest Rate & Credit Models, Baruch MFE  
-**Data:** Freddie Mac Single-Family Loan-Level Dataset (1999–2025)  
-**Dataset size:** 34,013,469 loans
+**Course:** MTH9877 Interest Rate & Credit Models, Baruch MFE, Spring 2026
+**Authors:** Rose Lin, Paolo Smalhout, Daniel Tuzes
+**Data:** Freddie Mac Single-Family Loan-Level Dataset, 1999–2025 (31.7M loans)
 
 ---
 
-## Repository Structure
+## Submission artifacts
 
-```
-Assignment3.ipynb          # Main notebook (all parts A–E)
-processed/
-  survival_loans.parquet   # Cached survival dataset (built once, ~20–40 min)
-  macro_monthly.parquet    # FRED macro covariates (MORTGAGE30US, UNRATE, CPI, HPI)
-  panel_monthly.parquet    # Discrete-time ML panel (one row per loan-month)
-  A1_km_hazard.png         # KM survival curve + implied hazard rate
-  A2_km_*.png              # Stratified KM by LTV / FICO / vintage
-  B1_cox_hr.png            # Cox PH hazard ratios
-  B2_schoenfeld.png        # Schoenfeld residuals (PH assumption check)
-  C_feature_importance.png # XGBoost / LightGBM / RF feature importance
-  D_training_loss.png      # Deep Cox training loss curve
-  D_gradient_sensitivity.png # Gradient sensitivity by feature
-  E1_competing_risks_cif.png # Aalen-Johansen competing risks CIF
-  E2_scenario_analysis.png   # Interest rate shock scenario analysis
-```
+| File | Description |
+|------|-------------|
+| `report.pdf` | Combined written report (Parts A–E), 18 pages |
+| `slides.pdf` | Combined presentation slides (Parts A–E + Q&A appendix), 54 pages |
+| `report.tex`, `slides.tex` | LaTeX sources |
+| `slides_speaker_notes.txt`, `slides_speaker_notes.docx` | Speaker scripts for the Part E section of the talk |
 
 ---
 
-## Dataset Summary
+## Reproducible code
 
-| Metric | Value |
-|--------|-------|
-| Total loans | 34,013,469 |
-| Prepaid | 21,970,748 (64.6%) |
-| Defaulted | 532,563 (1.6%) |
-| Censored | 11,510,158 (33.8%) |
-| Vintage range | 1999–2025 |
-| Median duration | 32 months |
+| File | Part | Run order | Type |
+|------|------|-----------|------|
+| `build_survival_table.py` | — | 1 | Builds the 31.7M-row survival table from Freddie Mac monthly performance files. Run once. |
+| `part_a_survival_analysis.py` | A | 2 | Kaplan–Meier survival on the full population, stratified by FICO, LTV, vintage, purpose. |
+| `part_b_cox_model.py` | B | 3 | Cox proportional hazards (5% sample), Schoenfeld PH diagnostic, vintage-macro extension. |
+| `part_c_ml_models.py` | C | 4 | LogReg / Random Forest / LightGBM / Cox baseline at horizons T ∈ {12, 24, 36, 60}. |
+| `part_d_deep_cox.py` | D | 5 | DeepSurv (3×64 ReLU) + linear-Cox-via-SGD ablation. |
+| `PartE_i_CompetingRisks.ipynb` | E(i) | 6 | KM vs Aalen–Johansen, cause-specific Cox (prepayment vs default). |
+| `PartE_ii_TimeVaryingCovariates.ipynb` | E(ii) | 7 | Andersen–Gill time-varying Cox on the loan-month panel. |
+| `PartE_iii_NeuralModels.ipynb` | E(iii) | 8 | LongitudinalDeepHit (Transformer encoder, competing-risk CIFs). |
+| `PartE_iv_ScenarioAnalysis.ipynb` | E(iv) | 9 | MBS scenario analysis: WAL, price, negative convexity under ±300bp shocks. |
+| `utilities.py` | shared | — | Canonical-split helpers, encoder persistence, scaler stats. |
 
----
-
-## Computational Note — Subsampling
-
-Parts B–E use a **stratified 100K-loan subsample** (0.29% of full dataset) drawn proportionally by vintage year. The subsample is validated to be representative:
-
-| Metric | Full (34M) | Subsample (100K) | Rel. diff |
-|--------|-----------|-----------------|-----------|
-| Prepay rate | 0.64594 | 0.64565 | −0.045% |
-| Default rate | 0.01566 | 0.01571 | +0.350% |
-| Median FICO | 751 | 752 | +0.133% |
-| Median LTV | 79 | 79 | 0.000% |
-| Median rate (%) | 4.875 | 4.875 | 0.000% |
-| Median DTI | 35 | 35 | 0.000% |
-
-All relative differences < 1%.
+Each Python script writes parquet outputs only (no plotting). Plotting is handled in per-part notebooks under `results_a/`, `results_b/`, `results_cd/`.
 
 ---
 
-## Part A — Exploratory Survival Analysis
+## How to run
 
-**A.1 Kaplan-Meier (full 34M loans)**
-
-| Horizon | Survival probability |
-|---------|---------------------|
-| 10 years | 15.4% |
-| 20 years | 3.6% |
-
-Median prepayment time: **50 months**
-
-**A.2 Stratified KM** — LTV buckets show minimal differentiation; FICO and vintage year produce strong separation (high-FICO and post-2010 loans prepay faster, consistent with refinancing incentives).
-
----
-
-## Part B — Classical Cox Proportional Hazards
-
-### B.1 Static Cox Model (100K subsample)
-
-Fit on 99,986 loans with 64,556 observed prepayments.
-
-| Covariate | HR (exp coef) | 95% CI |
-|-----------|:---:|--------|
-| CreditScore | 1.056 | [1.048, 1.064] |
-| OriginalInterestRate | **1.332** | [1.318, 1.346] |
-| OriginalUPB | 1.202 | [1.192, 1.212] |
-| OriginalLoantoValueLTV | 0.973 | [0.965, 0.980] |
-| VintageYear | 0.946 | [0.935, 0.956] |
-| OriginalDebttoIncomeRatio | 0.993 | [0.986, 1.000] |
-
-### B.2 Proportional Hazards Test (Schoenfeld residuals)
-
-Key violations (p < 0.001): **OriginalInterestRate** (test stat 190), **OriginalLTV** (62), **CreditScore** (43), **LoanPurpose_P** (33), **VintageYear** (23) — confirming the PH assumption is violated and motivating time-varying extensions.
-
-### B.3 Time-Varying Cox (300K panel rows)
-
-Key time-varying coefficients:
-
-| Covariate | HR | Interpretation |
-|-----------|:--:|----------------|
-| rate_incentive | 1.033 | Higher refinancing incentive → faster prepayment |
-| orig_rate | 1.023 | Higher original rate → faster prepayment |
-| mortgage_rate | 0.984 | Higher current rate → slower prepayment |
-| unemployment | 1.013 | Higher unemployment → slightly faster prepayment |
-| hpi_yoy | 1.003 | Rising house prices → marginally faster prepayment |
-
----
-
-## Part C — Machine Learning Models
-
-Discrete-time binary classification (prepaid this month) with train/val/test split by vintage year (train ≤ 2016, val 2017–2019, test ≥ 2020).
-
-| Model | AUC | Brier Score | C-index |
-|-------|:---:|:-----------:|:-------:|
-| XGBoost | **0.7119** | 0.1076 | 0.6758 |
-| LightGBM | 0.6684 | 0.0096 | 0.6415 |
-| Random Forest | 0.7114 | 0.0875 | **0.6856** |
-| Elastic Net | 0.6537 | **0.0070** | 0.8166 |
-
-Top features (XGBoost): `rate_incentive`, `loan_age`, `orig_rate`, `mortgage_rate`, `FICO`.
-
----
-
-## Part D — Deep Cox Model
-
-Neural network replacing the Cox linear predictor: `λ(t|x) = λ₀(t) · exp(f_θ(x))`, with architecture [128 → 64 → 32 → 1].
-
-Training loss converged from ~4.363 → **4.345** over 40 epochs (MPS device).
-
-| Model | C-index |
-|-------|:-------:|
-| Cox PH (static) | 0.6106 |
-| XGBoost | 0.6758 |
-| LightGBM | 0.6415 |
-| Random Forest | 0.6856 |
-| Elastic Net | 0.8166 |
-| **Deep Cox** | **0.6499** |
-
-**Gradient sensitivity** (avg |∂f_θ/∂xⱼ|):
-
-| Feature | Sensitivity |
-|---------|:-----------:|
-| VintageYear | 1.964 |
-| OriginalInterestRate | 0.583 |
-| mortgage_rate | 0.242 |
-| hpi_yoy | 0.240 |
-| OriginalLTV | 0.165 |
-| DTI | 0.158 |
-| UPB | 0.152 |
-| CreditScore | 0.145 |
-
----
-
-## Part E — Extensions
-
-### E.1 Competing Risks (Aalen-Johansen, 100K subsample)
-
-| Event | 10-year CIF |
-|-------|:-----------:|
-| Prepayment | **83.3%** |
-| Default | **2.23%** |
-
-### E.2 Interest Rate Shock Scenario Analysis
-
-| Shock | Deep Cox log-HR | XGBoost avg prob |
-|-------|:--------------:|:----------------:|
-| −200 bp | 0.113 | 0.492 |
-| −100 bp | 0.189 | 0.493 |
-| 0 bp (baseline) | 0.215 | 0.457 |
-| +100 bp | 0.211 | 0.315 |
-| +200 bp | 0.217 | 0.253 |
-
-Rate cuts increase prepayment probability (refinancing incentive). XGBoost shows a clear monotone response; Deep Cox log-HR is relatively stable across shocks due to the static feature design.
-
----
-
-## Setup
+### 1. Environment
 
 ```bash
-pip install polars lifelines lightgbm xgboost scikit-learn torch fredapi
+pip install polars pandas numpy scikit-learn lifelines lightgbm \
+            torch pycox torchtuples fredapi matplotlib seaborn \
+            statsmodels
 ```
 
-Set your FRED API key in the notebook (`FRED_API_KEY`) before running Step 2.  
-All intermediate datasets are cached in `processed/` — re-running is fast after the first build.
+Tested on Python 3.11 / macOS (Apple Silicon) and Linux x86_64. CPU-only is fine — total runtime is ~50 minutes.
+
+### 2. Data prerequisites
+
+- **Freddie Mac data** must be placed under `Origination_Historical_Data/` and `Monthly_Performance_historical_data_time/` (not in repo — request from Freddie Mac).
+- **FRED API key** required for macro covariates. Export it before running:
+  ```bash
+  export FRED_API_KEY="your_key_here"
+  ```
+
+### 3. Build the survival table (one-time, ~20–40 min)
+
+```bash
+python build_survival_table.py
+```
+
+Writes `survival_table.parquet` (~530 MB) plus `processed/macro_monthly.parquet` and `processed/panel_monthly.parquet`.
+
+### 4. Run Parts A–D (scripts)
+
+```bash
+python part_a_survival_analysis.py    # ~5 min — KM curves, hazards, stratifications
+python part_b_cox_model.py            # ~3 min — Cox PH + Schoenfeld test
+python part_c_ml_models.py            # ~15 min — LogReg / RF / LightGBM / Cox at 4 horizons
+python part_d_deep_cox.py             # ~17 min — DeepSurv + linear ablation
+```
+
+Each script writes parquet predictions and metrics into `results_a/`, `results_b/`, `results_cd/`. Open the matching plotting notebook in each `results_*/` folder to regenerate figures into `plots/`.
+
+### 5. Run Part E (notebooks)
+
+```bash
+jupyter notebook
+# then open each in order:
+PartE_i_CompetingRisks.ipynb           # ~5 min
+PartE_ii_TimeVaryingCovariates.ipynb   # ~10 min
+PartE_iii_NeuralModels.ipynb           # ~25 min CPU, ~6 min MPS/GPU
+PartE_iv_ScenarioAnalysis.ipynb        # ~3 min
+```
+
+All Part E figures land in `processed/` and are picked up automatically by `report_final.tex`.
+
+### 6. Rebuild the report and slides
+
+```bash
+pdflatex report.tex
+pdflatex slides.tex
+```
+
+`slides.tex` reads figures from `figures/` (A–D) and `processed/` (E). `report.tex` reads from both via `\graphicspath`.
+
+---
+
+## Folder structure
+
+```
+Assignment3/
+├── README.md                          ← this file
+├── report.tex, report.pdf             ← combined report (18 pp)
+├── slides.tex, slides.pdf             ← combined slides (54 pp)
+├── slides_speaker_notes.txt           ← speaker script (Part E)
+├── slides_speaker_notes.docx          ← dot-point script
+│
+├── build_survival_table.py            ← code
+├── part_{a,b,c,d}_*.py                ←
+├── PartE_{i,ii,iii,iv}_*.ipynb        ←
+├── utilities.py                       ←
+│
+├── figures/                           ← A–D figures
+├── processed/                         ← Part E figures + parquet panels
+├── results_a/, results_b/, results_cd/ ← intermediate outputs + plotting notebooks
+├── samples/                           ← sample data (small, in repo)
+├── survival_table.parquet             ← built by step 3 (not in repo)
+│
+└── References
+    ├── IR&C_Assignment3_2026.pdf      ← assignment spec
+    ├── Chen2024_*.pdf                 ← Chen 2024 survival models monograph
+    └── Sadhwani2021_*.pdf             ← Sadhwani et al. 2021 (anchor paper)
+```
+
+---
+
+## Key methodological notes
+
+- **Train/test split:** by vintage — train ≤ 2014, test 2015–2019. Persisted as `canonical_split.parquet` so Parts C and D evaluate on identical rows.
+- **Encoders & scalers** are fit on the training set only and persisted (`encoders.pkl`) for downstream parts to reuse — prevents test-set leakage.
+- **Subsampling:** Part A uses the full 31.7M loans; Part B uses 5% (1.58M); Parts C and D share a 10% sample (1.85M train / 597K test); Part E(ii) and E(iii) draw from a 100K-loan panel with full monthly performance history.
+- **Competing risks:** Parts A–D treat default as right-censoring (cause-specific framing). Part E(i) explicitly models default as a competing risk via Aalen–Johansen and cause-specific Cox.
+- **Time-varying covariates:** Parts B and D use only origination features. Part E(ii) introduces four time-varying features (rate_incentive, ELTV, unemployment, hpi_yoy) via the Andersen–Gill extension.
+
+---
+
+## Headline results
+
+| Model | Scope | T=12 AUC | T=60 AUC |
+|-------|-------|:--:|:--:|
+| Cox PH (Part B) | static | 0.66 | 0.67 |
+| LightGBM (Part C) | static | 0.68 | 0.68 |
+| LogReg (Part C) | static | 0.69 | 0.70 |
+| **Deep Cox (Part D)** | static | 0.68 | **0.73** |
+| TV Cox (Part E(ii)) | time-varying | **0.68** | 0.65 |
+| LongitudinalDeepHit (Part E(iii)) | sequence | 0.69 (default) | 0.73 (default) |
+
+**Part E(i):** 10-year Aalen–Johansen CIF: 83.3% prepaid, 2.2% defaulted, 14.5% active. KM overstates prepayment by up to +2.2 pp over 20 years.
+
+**Part E(iv):** ±300bp rate shock shifts MBS price by +$9.25 / −$9.30 (negative convexity).
