@@ -92,41 +92,16 @@ The full standard dataset contains 31{,}688{,}129 loans originated between 1999 
 \section{Data and Methodology}
 % =================================================================
 
-\subsection{Survival table construction}
+We construct a 31.7M-loan \emph{survival table} from Freddie Mac's monthly performance files: one record per loan with \texttt{Duration} (months to terminal observation), \texttt{Event\_Prepay}, and a \texttt{CreditTerminated} indicator (Zero Balance Codes 03, 09). Sentinel codes (DTI/MI = 999) are cleaned to NaN; 39 origination columns expand to 68 features after one-hot and top-15 encoding. All encoders, medians, and scaler statistics are fit on the training set only and persisted (\texttt{encoders.pkl}) for downstream parts.
 
-The raw Freddie Mac data is delivered as quarterly origination files plus monthly performance files, totaling tens of GB. We construct a single \emph{survival table} of 31.7M loans by:
-(i) aggregating each loan's monthly performance to a single record with \texttt{Duration} (months from first payment to terminal observation), \texttt{Event\_Prepay} (binary), and \texttt{Terminated} (binary);
-(ii) deriving an explicit \texttt{CreditTerminated} indicator distinguishing credit-related exits (Zero Balance Code 03, 09) from voluntary prepayment (ZBC 01); and
-(iii) cleaning Freddie Mac's sentinel codes (DTI = 999, MI = 999, etc.) to NaN.
-Categorical covariates are top-K-encoded (e.g., top-15 servicers) with rare levels collapsed to ``Other''.
+The train/test split is by vintage: train $\leq 2014$ (full crisis cycle), test 2015--2019 (597{,}205 loans). For Parts B--D, a 10\% random sample is used (1.85M train / 597K test). Cause-specific framing is used throughout Parts A--D: a loan prepaying by horizon $T$ is positive, observed-but-not-prepaid is negative, and competing termination $\leq T$ is excluded~\cite{kalbfleischprentice}. Full survival table construction, feature engineering, and target definitions are detailed in Appendix~\ref{app:methodology}.
 
-\subsection{Targets and split}
-
-For Parts C and D we evaluate at horizons $T \in \{12, 24, 36, 60\}$ months. Targets are constructed under the cause-specific framing: a loan that prepays by $T$ is a positive (1); a loan observed through $T$ without prepayment or competing termination is a negative (0); a loan with competing termination at $\text{Duration} \leq T$ or right-censored before $T$ is excluded (NaN). This is the standard cause-specific framing for competing risks~\cite{kalbfleischprentice}.
-
-The train/test split is by vintage: \textbf{train} = vintages $\leq 2014$ (full crisis and pre-crisis cycle), \textbf{test} = vintages 2015--2019 (out-of-sample post-crisis). For Part D, we additionally carve a 10\% validation slice from the training set \emph{before} feature transformation, used only for early stopping. The split is persisted as \texttt{canonical\_split.parquet} so that Parts C and D evaluate on identical test rows. A 10\% random sample (3.17M loans) is used for Parts B--D to fit memory; the test set is 597{,}205 loans after restricting to vintages 2015--2019.
-
-\subsection{Feature engineering}
-
-The 39 origination columns expand to a 68-feature matrix after encoding:
-
-\begin{itemize}[leftmargin=1.2em,itemsep=2pt,topsep=2pt]
-  \item \textbf{Continuous covariates} (FICO, LTV, original interest rate, original UPB, DTI) are z-scored using means and standard deviations fit on the training set only. Missing values are imputed with the training-set median, with a paired binary ``missing'' flag added as an additional feature so the model can learn whether missingness itself is informative (it is for DTI, which equals 999 for Relief Refinance loans).
-  \item \textbf{Low-cardinality categoricals} (Loan Purpose, Occupancy, Channel, Property Type, First-Time Homebuyer) are one-hot encoded with one reference level dropped.
-  \item \textbf{High-cardinality categoricals} (Seller Name, Servicer Name, Property State) are top-15 encoded: the 15 most-common levels in the training set get their own indicator, with all rare levels collapsed to ``Other''.
-  \item \textbf{Macro covariates} (Part B only) are joined at \texttt{FirstPaymentDate} and z-scored.
-\end{itemize}
-
-All encoders (top-K level lists, medians, scaler stats) are fit on the training set only and persisted as \texttt{encoders.pkl} for Part D to reuse, ensuring identical preprocessing across parts. This was a critical fix discovered during cross-AI code review: the original Part C version was fitting encoders on the full sample before splitting, which leaked test-set distribution into training-set medians.
-
-\subsection{One key equation}
-
-Throughout Parts B and D, the survival function $S(t \mid X)$ is parameterized by Cox proportional hazards:
+\textbf{Key model.} The survival function $S(t \mid X)$ is parameterised by Cox proportional hazards:
 \begin{equation}
   \lambda(t \mid X) \;=\; \lambda_0(t) \cdot \exp\!\bigl(f_\theta(X)\bigr),
   \label{eq:cox}
 \end{equation}
-where $\lambda_0(t)$ is a non-parametric baseline hazard (estimated by Breslow's estimator) and $f_\theta$ is either a linear predictor $X^\top \beta$ (classical Cox) or a feed-forward neural network (Deep Cox). The model is fit by maximum partial likelihood; the likelihood does not depend on $\lambda_0$, which is recovered post-hoc.
+where $\lambda_0(t)$ is a non-parametric baseline hazard (Breslow estimator) and $f_\theta$ is either a linear predictor $X^\top \beta$ (classical Cox) or a feed-forward neural network (Deep Cox). The partial likelihood does not depend on $\lambda_0$.
 
 % =================================================================
 \section{Part A --- Kaplan--Meier Survival Estimation}
@@ -173,7 +148,7 @@ The survival curve is steep in the first three years and decays through:
   \caption{\textbf{Part A stratification, continued.} Left: by original LTV bucket. Right: by loan purpose. LTV separates less strongly than vintage, while loan-purpose curves show timing differences between purchase and refinance populations.}
 \end{figure}
 
-\textbf{Reading the stratifications.} Vintage is the dominant driver because it proxies for the origination-rate environment and the subsequent opportunity to refinance. FICO and LTV show cleaner but smaller credit-quality gradients: higher-credit and moderate-LTV borrowers are more refinance-capable, while very high-LTV loans prepay more slowly. Loan purpose is not purely monotone: no-cash-out refinances have the highest overall prepayment incidence, but purchase loans fall earlier in the curve, consistent with borrower mobility and sale-driven payoff timing.
+Vintage is the dominant driver as a proxy for origination-rate environment and the subsequent refinance opportunity. FICO and LTV show smaller monotone credit-quality gradients; loan purpose effects are non-monotone with timing differences between purchase and refinance populations.
 
 % =================================================================
 \section{Part B --- Cox Proportional Hazards}
@@ -319,9 +294,7 @@ Part E extends the prepayment-only framing of Parts A--D in four directions: exp
 % -----------------------------------------------------------------
 \subsection{Part E(i) --- Competing Risks: Kaplan--Meier vs.\ Aalen--Johansen}
 
-\textbf{Setup.} Prepayment and default are competing risks: each loan exits via exactly one cause, and treating one as random censoring distorts the other. We compare the cause-specific Kaplan--Meier estimator used in Parts A--D against the Aalen--Johansen (AJ) estimator, which keeps all exits in the risk-set denominator and provides a coherent probability partition.
-
-\textbf{KM bias.} KM censors competing-event loans, shrinking the denominator at each event time and inflating the cause-specific incidence:
+Prepayment and default are competing risks: each loan exits via exactly one cause, and treating one as random censoring distorts the other. The Aalen--Johansen (AJ) estimator keeps all exits in the risk-set denominator and provides a coherent probability partition, whereas the cause-specific Kaplan--Meier estimator used in Parts A--D censors competing exits and inflates the cause-specific incidence:
 \[
   \hat{F}^{(k)}_{\mathrm{KM}}(t) = 1 - \prod_{t_j \le t}\!\left(1 - \frac{d_{j}^{(k)}}{n_j^{\mathrm{KM}}}\right),
   \qquad
@@ -353,14 +326,9 @@ AJ guarantees $\hat{F}^{(\mathrm{pre})}(t) + \hat{F}^{(\mathrm{def})}(t) + \hat{
 
 The 10-year AJ partition is 83.3\% prepaid, 2.2\% defaulted, 14.5\% active. The bias is small in absolute terms because default is rare (the censored-out fraction is small), but it grows monotonically and is consistently positive --- KM gives the wrong answer in the same direction every time.
 
-\textbf{Stratified competing risks.} Stratifying the AJ CIF by FICO, LTV, and vintage reveals an asymmetric pattern: FICO and LTV strongly separate \emph{default} curves (low-FICO borrowers default at $6\times$ the rate of high-FICO), but leave the \emph{prepayment} curves nearly indistinguishable. Vintage dominates both. The interpretation is that credit quality determines who \emph{can} refinance (default risk), not who \emph{wants} to (refinance behaviour), while macro rate environment at origination determines both.
+Stratified AJ CIF (not shown): FICO and LTV strongly separate \emph{default} curves (low-FICO defaults at $6\times$ high-FICO rate) but leave \emph{prepayment} curves indistinguishable --- credit quality gates default risk, not refinance willingness.
 
-\textbf{Cause-specific Cox.} We extend the Cox framework to fit separate proportional-hazards models for prepayment and default:
-\[
-  h_k(t \mid \mathbf{x}) = h_{0k}(t)\,\exp\!\bigl(\boldsymbol{\beta}_k^\top\mathbf{x}\bigr),
-  \qquad k \in \{\mathrm{pre},\,\mathrm{def}\},
-\]
-where the cause-$k$ model treats all competing-cause exits as censored. Beyond the Part B origination features, we add two delinquency variables: \texttt{max\_delinquency} (months past due over loan life) and \texttt{ever\_90+DQ} (binary severe-delinquency flag).
+We fit cause-specific Cox models $h_k(t\mid\mathbf{x}) = h_{0k}(t)\exp(\boldsymbol{\beta}_k^\top\mathbf{x})$, $k \in \{\text{pre, def}\}$, treating competing-cause exits as censored. Beyond Part B origination features, we add \texttt{max\_delinquency} and \texttt{ever\_90+DQ}.
 
 \textbf{The naive-Cox sign-flip problem.} Pooling prepayment and default into a single ``terminated'' Cox model hides the most important signal in the data. Four covariates flip sign across causes:
 
@@ -383,18 +351,10 @@ where the cause-$k$ model treats all competing-cause exits as censored. Beyond t
 
 The most striking example is \texttt{max\_delinquency}: the naive coefficient is $-0.123$, suggesting that delinquency mildly \emph{reduces} the hazard --- exactly the wrong sign for a credit-risk variable. The cause-specific decomposition reveals that each additional month delinquent raises default hazard by $e^{0.298}-1 = +35\%$ while cutting prepayment hazard by $1 - e^{-0.245} = -22\%$. The naive model collapses a $+0.543$ spread to near zero. A combined ``terminated-vs-active'' Cox model does not merely lose precision on credit-risk variables; it reports the wrong sign and would be dangerous for any application involving default-related decisions (capital allocation, CRT pricing, loss forecasting).
 
-\textbf{Key takeaways E(i).} (i) KM systematically overstates prepayment incidence; use AJ for any application requiring coherent probabilities across competing causes. (ii) Vintage era dominates FICO and LTV for prepayment; FICO and delinquency dominate for default. (iii) A combined Cox model gives the wrong sign for credit-risk variables --- cause-specific (or Fine--Gray) is mandatory whenever default is a non-trivial outcome.
-
 % -----------------------------------------------------------------
 \subsection{Part E(ii) --- Time-Varying Covariates: Andersen--Gill}
 
-\textbf{Motivation.} The Cox models in Parts B, D, and E(i) all use origination-time covariates only. In reality, the variables that drive prepayment evolve month by month: the refinancing incentive depends on \emph{today's} market rate, not the rate at origination; equity builds via amortisation and HPI; macro variables (unemployment, HPI growth) move through cycles. The Andersen--Gill (AG) Cox extension addresses this by fitting one row per loan-month:
-\[
-  h_i(t) = h_0(t) \cdot \exp\!\bigl(\boldsymbol{\beta}^\top \mathbf{x}_i(t)\bigr),
-\]
-where $\mathbf{x}_i(t)$ is the borrower's covariate vector \emph{at month $t$}. The partial likelihood and Breslow baseline estimator are formally identical to standard Cox; only the data layout changes.
-
-\textbf{Sample.} 100K loans drawn from the 2M-loan panel with monthly performance data; $\sim$47 months average duration yields 4.68M loan-month intervals. The static baseline (``Standard Cox'') uses the same 100K loans with covariates fixed at origination.
+The Cox models in Parts B, D, and E(i) use only origination-time covariates. The Andersen--Gill (AG) extension fits one row per loan-month with $h_i(t) = h_0(t)\exp(\boldsymbol{\beta}^\top \mathbf{x}_i(t))$, where $\mathbf{x}_i(t)$ updates each month. Sample: 100K loans drawn from the 2M-loan panel, $\sim$47 mo avg = 4.68M loan-month intervals; static baseline uses the same 100K loans with covariates fixed at origination.
 
 \textbf{Four time-varying features.} On top of the 11 static origination covariates:
 \begin{itemize}[leftmargin=1.2em,itemsep=2pt,topsep=2pt]
@@ -451,14 +411,10 @@ which measures whether the model correctly orders the about-to-prepay loan ahead
 
 TV Cox beats static at short and medium horizons by 0.02--0.07 in concordance. Beyond $T \approx 70$ months the relationship reverses: \textbf{survivorship bias} dominates. Loans surviving to 84+ months are a highly selected rate-locked subpopulation; their current \texttt{rate\_incentive} is deeply negative \emph{because} they did not prepay, and that signal is no longer informative about who will prepay next. Origination-era features (vintage, FICO) discriminate the residual prepayers better. The right fix is a \textbf{landmark super-model}: refit TV Cox on the subsample still active at $T = 72$, re-estimating coefficients for the surviving population.
 
-\textbf{Key takeaways E(ii).} (i) Monthly-updated covariates add real information --- log-likelihood gain $+1{,}996$, $\Delta C = +0.07$ at $T=12$. (ii) Rate incentive is the dominant driver; macro coefficients require careful inspection because vintage-era and current-month signals can have opposite interpretations. (iii) TV Cox degrades beyond 70 months due to survivorship bias; the principled fix is landmarking.
-
 % -----------------------------------------------------------------
 \subsection{Part E(iii) --- Neural Survival: LongitudinalDeepHit}
 
-\textbf{Motivation.} Cox and Andersen--Gill assume that covariate effects are constant over time, captured by a single coefficient vector. The Schoenfeld test in Part B already rejects PH for 12/15 covariates, and the long-horizon C-index reversal in E(ii) shows that the same monthly covariate has different predictive weight at different points in the loan's life. A natural next step is a sequence model that reads the full monthly history $[\mathbf{x}_1, \dots, \mathbf{x}_T]$ and produces nonlinear, time-varying hazards for prepayment and default jointly.
-
-\textbf{Architecture.} We adapt the DeepHit framework (Lee et al.\ 2018) to longitudinal sequences via a Transformer encoder:
+Cox and AG assume constant covariate effects --- the Schoenfeld test rejects PH for 12/15 covariates, and the long-horizon C-index reversal in E(ii) shows weights vary by month. We adapt the DeepHit framework (Lee et al.\ 2018) to longitudinal sequences via a Transformer encoder:
 \begin{itemize}[leftmargin=1.2em,itemsep=2pt,topsep=2pt]
   \item \textbf{Input:} $(B, T_{\max}{=}120, D{=}13)$ padded monthly sequences. 8 static features (FICO, LTV, DTI, UPB, loan-purpose dummies, occupancy dummies) repeated each month, 5 dynamic features (\texttt{rate\_incentive}, ELTV, mortgage rate, unemployment, hpi\_yoy).
   \item \textbf{Projection:} Linear $D \to d_{\text{model}} = 64$, followed by sinusoidal positional encoding on loan age.
@@ -518,14 +474,10 @@ The takeaway is that the model's \emph{discrimination} is preserved while its \e
 
 For default, DeepHit matches DeepCox at every horizon despite training on $6\times$ fewer loans --- the full monthly covariate history compensates for reduced data volume. For prepayment, DeepHit underperforms DeepCox, which is the direct consequence of NLL collapse: with 1.6\% event rate the model never learns calibrated prepayment hazards, and its long-horizon prepayment AUC drifts toward 0.5 (random).
 
-\textbf{Key takeaways E(iii).} (i) Default AUC matches Part D's DeepCox benchmark with $6\times$ less training data, validating the sequence-model design. (ii) Feature importance is time-varying and can be visualised over the loan lifecycle, uniquely among the models in this study. (iii) The known limitation is calibration: the 1.6\% event rate causes NLL collapse and unreliable absolute probabilities. AUC discrimination is preserved by the ranking loss but absolute hazards are not trustworthy; focal-loss upweighting is the priority remediation.
-
 % -----------------------------------------------------------------
 \subsection{Part E(iv) --- Scenario Analysis: MBS Prepayment under Rate Shocks}
 
-\textbf{Motivation.} The ultimate use of a prepayment model in industry is to stress-test MBS portfolios under interest-rate scenarios: how does prepayment speed change when rates move $\pm$100, $\pm$200, $\pm$300\,bp? How does that translate into Weighted Average Life (WAL) and price? Static models such as Part D's DeepCox have no rate channel --- the origination coupon is fixed --- so the only way to shock them is to retrain on shifted rates, which is operationally infeasible and conceptually wrong. The TV Cox model from E(ii) provides the cleanest direct rate channel: \texttt{rate\_incentive} is a live covariate, so any market-rate shock $\Delta r$ maps directly to a log-hazard shift via the estimated coefficient.
-
-\textbf{TV Cox rate channel.} The closed-form response is
+Static models (Part D's DeepCox) have no rate channel --- the origination coupon is fixed. The TV Cox model from E(ii) provides a direct rate channel: \texttt{rate\_incentive} is a live covariate, so any market-rate shock $\Delta r$ maps directly to a log-hazard shift. The closed-form response is
 \[
   \Delta \log h(t) \;=\; \hat\beta_{\text{ri}} \times \frac{-\Delta r}{100},
   \qquad \hat\beta_{\text{ri}} = 0.041 \text{ (HR} = 1.042 \text{ per 100\,bp)}.
@@ -590,40 +542,65 @@ A $\pm 300$\,bp shock shifts 10-year survival by $\pm 3$\,pp and median prepayme
   \item Rate $\downarrow 300$\,bp: price gain $= +\$9.25$.
   \item Rate $\uparrow 300$\,bp: price loss $= -\$9.30$.
 \end{itemize}
-The asymmetry is small in this specification ($\$0.05$) because TV Cox has a linear rate channel and the baseline market rate of 5.3\% is close to the par-coupon level. In practice, real MBS exhibit much larger convexity asymmetry because (i) prepayment hazard is nonlinear (S-curve) in rate incentive at the population level, (ii) heterogeneity across borrowers amplifies the rate-down response, and (iii) the call-option-like feature of prepayment creates path-dependent valuation. Capturing the full S-curve would require either a nonlinear rate response (focal-loss-fixed DeepHit) or a population mixture model.
-
-\textbf{Key takeaways E(iv).} (i) Static models have no usable rate channel; time-varying covariates are required for any scenario analysis worth doing. (ii) TV Cox's linear rate channel makes stress-test results fully explainable from one coefficient, valuable for auditability. (iii) Negative convexity is correctly captured directionally; magnitude is small in this single-loan specification and would grow in a heterogeneous pool. (iv) FICO and LTV effects on the rate response are real but require more loans to surface statistically --- in this specification rate incentive drives all the CPR variation.
+The asymmetry is small ($\$0.05$) because TV Cox has a linear rate channel; real MBS show larger convexity from population S-curves, borrower heterogeneity, and path-dependent valuation. A focal-loss-fixed DeepHit or population mixture would capture the full S-curve.
 
 
+\textbf{Why Deep wins at long horizons.} Linear Cox assumes additive covariate effects; reality is jointly determined. As horizon extends, borrower-by-environment interaction paths multiply, and the deep network captures them while the linear model collapses them. At $T{=}12$ only obvious-incentive borrowers have prepaid --- easy for any model. Tree models' axis-aligned splits approximate smooth multivariate interactions poorly, so LightGBM tops out at 0.69 AUC while DeepCox reaches 0.73. This mirrors Sadhwani--Giesecke--Sirignano (2021) on CoreLogic. Extended discussion in Appendix~\ref{app:discussion}.
+
+\textbf{Limitations addressed in Part E.} Parts B/D use only origination-time features (addressed in E(ii) via Andersen--Gill, $\Delta C = +0.07$ at $T{=}12$); Parts A--D censor default as competing exit (addressed in E(i) via Aalen--Johansen and cause-specific Cox); Deep Cox is not stressable because rate is fixed at origination (addressed in E(iv)).
+
+\textbf{Remaining limitations.} Mini-batch Cox is a stochastic partial-likelihood approximation; vintage-based split exposes test to a different rate environment than train (honest, but absolute AUCs reflect shift); LongitudinalDeepHit suffers NLL collapse at 1.6\% event rate (AUC preserved, calibration not; focal-loss is the fix); TV Cox degrades beyond 70 months due to survivorship bias (a landmark super-model would fix this).
+
+% =================================================================
+\appendix
+% =================================================================
+
+\section{Extended Discussion}\label{app:discussion}
+% =================================================================
 
 \textbf{Why Deep wins at long horizons.} A linear Cox model assumes the log-hazard is additive in covariate effects: a loan with a high rate plus high FICO plus low LTV experiences a hazard that is the product of independently-acting multipliers. The data say otherwise: the prepayment incentive of a high origination rate \emph{conditional} on that loan still being alive at $T{=}36$ depends jointly on the borrower's FICO, current balance, and the rate environment they would face in refinancing. The linear model collapses these interactions; the deep model captures them. As horizon extends, more of these compound paths become relevant, so the ablation gap widens.
 
 \textbf{Why short horizons don't show a gap.} At $T{=}12$, the only loans that have prepaid are those with very strong, singular incentive --- typically the highest-rate borrowers facing a meaningfully lower rate environment. These are the easy cases for any model. Tree models find them via single splits; logistic regression finds them via marginal coefficients; the deep network has no extra information to exploit.
 
-\textbf{Comparison with Sadhwani et al.\ (2021).} The Sadhwani--Giesecke--Sirignano paper makes essentially the same finding on a much larger and richer dataset (CoreLogic, 120M+ loans, 272 covariates including zip-code-level macro). Their five-layer network's out-of-sample test-loss reduction over a logistic regression is most pronounced for prepayment among all events --- consistent with our finding that prepayment is where nonlinearities are strongest. Our 0.04--0.05 $\Delta AUC$ at long horizons, on a much smaller dataset and with only 68 covariates, is a quantitatively similar gap. The mechanism they identify --- interactions between unemployment and FICO, between LTV and house price appreciation --- aligns with our intuition that interactions become more relevant as horizon extends.
+\textbf{Comparison with Sadhwani et al.\ (2021).} The Sadhwani--Giesecke--Sirignano paper makes essentially the same finding on a much larger and richer dataset (CoreLogic, 120M+ loans, 272 covariates including zip-code-level macro). Their five-layer network's out-of-sample test-loss reduction over a logistic regression is most pronounced for prepayment among all events --- consistent with our finding that prepayment is where nonlinearities are strongest. Our 0.04--0.05 $\Delta AUC$ at long horizons, on a much smaller dataset and with only 68 covariates, is a quantitatively similar gap.
 
-\textbf{Why tree models don't close the gap.} Random Forest and LightGBM are powerful nonlinear learners, but their nonlinearity is axis-aligned: at each node, they split on a single feature. Smooth, multivariate interactions (the kind a sigmoidal or ReLU network with multiple layers naturally represents) require many tree splits to approximate. Sadhwani et al.\ also report that gradient boosting underperforms deep networks for this task. Our finding is consistent: LightGBM tops out at 0.69 AUC; DeepCox reaches 0.73.
+\textbf{Why tree models don't close the gap.} Random Forest and LightGBM are powerful nonlinear learners, but their nonlinearity is axis-aligned: at each node, they split on a single feature. Smooth, multivariate interactions require many tree splits to approximate. LightGBM tops out at 0.69 AUC; DeepCox reaches 0.73.
 
 \textbf{Why Logistic Regression is competitive at the short end.} At $T{=}12$, prepayment is concentrated in a tail of obvious refi candidates: high original rate, high FICO, large balance, recently originated. Marginal effects are sufficient. As horizon extends and the population at risk thins, the borrower-by-environment interactions matter more, and the linear marginal effects start to lose information.
 
-\textbf{Limitations of Parts A--D (addressed in Part E).}
-\begin{enumerate}[leftmargin=1.5em,itemsep=2pt,topsep=2pt]
-  \item \emph{Time-varying covariates.} Parts B and D use only origination-time features. \textbf{Addressed in E(ii)} via the Andersen--Gill loan-month panel; the four time-varying features (\texttt{rate\_incentive}, ELTV, unemployment, hpi\_yoy) improve landmark C-index by $+0.07$ at $T = 12$.
-  \item \emph{Competing risks.} Parts A--D censor default as a competing exit. \textbf{Addressed in E(i)} via Aalen--Johansen and cause-specific Cox; the naive combined Cox model gives the wrong sign for credit-risk variables.
-  \item \emph{Scenario analysis.} The trained Deep Cox is not directly stressable because rate is fixed at origination. \textbf{Addressed in E(iv)} using the TV Cox model from E(ii), translating rate shocks into MBS WAL and price under negative convexity.
-\end{enumerate}
+% =================================================================
+\section{Detailed Data and Methodology}\label{app:methodology}
+% =================================================================
 
-\textbf{Remaining limitations.}
-\begin{enumerate}[leftmargin=1.5em,itemsep=2pt,topsep=2pt]
-  \item Mini-batch Cox is a stochastic approximation to the exact partial likelihood. With batch size 512 the approximation is the standard one in the literature, but a sensitivity check across batch sizes 256/1024/2048 would strengthen the conclusions.
-  \item Vintage-based train/test split means our test set sees a different rate environment than train; this is the right choice for honest out-of-sample evaluation but means absolute AUCs reflect distribution shift, not just model capacity.
-  \item The LongitudinalDeepHit model in E(iii) suffers NLL collapse due to the 1.6\% event rate; AUC discrimination is preserved but absolute hazards are unreliable. Focal-loss reweighting is the priority remediation.
-  \item TV Cox degrades beyond 70 months due to survivorship bias in the rate-locked population; a landmark super-model would fix this.
-\end{enumerate}
+\subsection{Survival table construction}
 
-\subsection{Final results overview}
+The raw Freddie Mac data is delivered as quarterly origination files plus monthly performance files, totaling tens of GB. We construct a single survival table of 31.7M loans by:
+(i) aggregating each loan's monthly performance to a single record with \texttt{Duration}, \texttt{Event\_Prepay}, and \texttt{Terminated};
+(ii) deriving an explicit \texttt{CreditTerminated} indicator distinguishing credit-related exits (ZBC 03, 09) from voluntary prepayment (ZBC 01); and
+(iii) cleaning Freddie Mac's sentinel codes (DTI = 999, MI = 999, etc.) to NaN.
+Categorical covariates are top-K-encoded (e.g., top-15 servicers) with rare levels collapsed to ``Other''.
 
-For ease of comparison, we collect all six models' overall test-set metrics in a single table. Best per-column values are highlighted in bold.
+\subsection{Targets and split}
+
+For Parts C and D we evaluate at horizons $T \in \{12, 24, 36, 60\}$ months. Targets are constructed under the cause-specific framing: a loan that prepays by $T$ is a positive; a loan observed through $T$ without prepayment or competing termination is a negative; a loan with competing termination at $\text{Duration} \leq T$ or right-censored before $T$ is excluded (NaN).
+
+The train/test split is by vintage: train = vintages $\leq 2014$ (full crisis cycle), test = vintages 2015--2019 (out-of-sample post-crisis). For Part D, we additionally carve a 10\% validation slice from the training set \emph{before} feature transformation, used only for early stopping. The split is persisted as \texttt{canonical\_split.parquet} so that Parts C and D evaluate on identical test rows.
+
+\subsection{Feature engineering}
+
+The 39 origination columns expand to a 68-feature matrix after encoding:
+\begin{itemize}[leftmargin=1.2em,itemsep=2pt,topsep=2pt]
+  \item \textbf{Continuous covariates} (FICO, LTV, original interest rate, original UPB, DTI) are z-scored on training stats; missing values imputed with training-set median, paired with a binary ``missing'' flag (informative for DTI = 999, the Relief Refinance code).
+  \item \textbf{Low-cardinality categoricals} (Loan Purpose, Occupancy, Channel, Property Type, First-Time Homebuyer) are one-hot encoded.
+  \item \textbf{High-cardinality categoricals} (Seller, Servicer, Property State) are top-15 encoded; rare levels $\to$ ``Other''.
+  \item \textbf{Macro covariates} (Part B only) joined at \texttt{FirstPaymentDate} and z-scored.
+\end{itemize}
+
+All encoders are fit on the training set only and persisted as \texttt{encoders.pkl}. This was a critical fix discovered during cross-AI review: the original Part C was fitting encoders on the full sample before splitting, leaking test-set distribution into training-set medians.
+
+% =================================================================
+\section{All Six Models --- Final Test-Set Metrics}\label{app:metrics}
+% =================================================================
 
 \begin{center}
   \small
@@ -642,19 +619,19 @@ For ease of comparison, we collect all six models' overall test-set metrics in a
   \end{tabular}
 \end{center}
 
-\textbf{Reading guide.} Two distinct stories: at short horizons (T=12), LogReg has the best AUC and LightGBM has the best Brier --- both linear-or-near-linear models. At moderate-to-long horizons (T=24, 36, 60), DeepCox wins both AUC and Brier (and log-loss, calibration, top-decile lift --- in the underlying data tables not shown here for space). The transition between these regimes happens between $T{=}12$ and $T{=}24$ months, which is where prepayment shifts from being concentrated in obvious-incentive borrowers to being distributed across the broader population.
+At short horizons (T=12), LogReg has the best AUC and LightGBM the best Brier --- both linear-or-near-linear models. At moderate-to-long horizons (T=24, 36, 60), DeepCox wins both AUC and Brier. The transition between these regimes happens between $T{=}12$ and $T{=}24$ months, where prepayment shifts from being concentrated in obvious-incentive borrowers to being distributed across the broader population.
 
 % =================================================================
 \section{Reproducibility and Engineering Notes}
 % =================================================================
 
-\textbf{Pipeline structure.} The full pipeline is six scripts plus four plotting notebooks, running end-to-end in approximately 50 minutes on a single CPU machine. Each compute script writes parquet outputs only and contains no plotting; plotting is delegated to per-part Jupyter notebooks that read from the corresponding \texttt{results\_*/} folder. This compute/plot separation makes both halves easier to iterate on independently.
+\textbf{Pipeline structure.} Six Python scripts (Parts A--D) plus four Jupyter notebooks (Part E), running end-to-end in approximately 50 minutes on a single CPU machine. Compute scripts write parquet outputs only; plotting is delegated to per-part notebooks reading from \texttt{results\_*/}.
 
-\textbf{Single source of truth.} A canonical split file (\texttt{canonical\_split.parquet}) records the train/test partition used by Parts C and D. Part D's \texttt{restrict\_to\_canonical\_split} loads this file and reorders rows to match Part C exactly, with a row-by-row alignment assertion that fails loudly if the splits diverge. Encoders fit on training data are persisted as \texttt{encoders.pkl} and loaded by Part D --- so test-set features are encoded with the identical fitted statistics, eliminating one common source of leakage.
+\textbf{Single source of truth.} \texttt{canonical\_split.parquet} records the train/test partition; Part D's \texttt{restrict\_to\_canonical\_split} reorders rows to match Part C with a row-by-row assertion. Encoders persisted as \texttt{encoders.pkl} ensure identical preprocessing across parts.
 
-\textbf{Engineering challenges.} Three were significant: (i) \textbf{memory} --- the full survival table is 31.7M rows $\times$ 39 columns; we used polars for the build (faster and more memory-efficient than pandas) and float32 for numerical features; (ii) \textbf{validation leakage} --- Part D's val slice is carved from train \emph{before} feature transformation and standardization, with the scaler fit only on the inner train; (iii) \textbf{cross-AI verification} --- the code was reviewed iteratively across two LLM chats. Critical bugs caught: encoder-fit-before-split leakage in original Part C, validation-after-standardization in original Part D, and a sentinel-cleaning ordering bug in Part B (\texttt{has\_MI} flag was being computed before MI=999 sentinels were cleaned).
+\textbf{Engineering challenges.} (i) Memory: full survival table is 31.7M rows; we used polars and float32. (ii) Validation leakage: Part D val carved before feature transformation, scaler fit only on inner train. (iii) Cross-AI verification caught encoder-fit-before-split leakage in Part C, validation-after-standardization in Part D, and a sentinel-cleaning ordering bug in Part B (\texttt{has\_MI} flag computed before MI=999 cleaned).
 
-All hyperparameters and CLI flags are documented in \texttt{D\_model\_meta.json}, including feature names, scaler statistics, training configuration, and runtime measurements.
+All hyperparameters and CLI flags are documented in \texttt{D\_model\_meta.json}.
 
 \begin{thebibliography}{9}
   \small

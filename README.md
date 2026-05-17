@@ -10,9 +10,9 @@
 
 | File | Description |
 |------|-------------|
-| `report.pdf` | Combined written report (Parts A–E), 18 pages |
-| `slides.pdf` | Combined presentation slides (Parts A–E + Q&A appendix), 54 pages |
-| `report.tex`, `slides.tex` | LaTeX sources |
+| `IR&C_Assignment3_report_GroupE.pdf` | Combined written report (Parts A–E), 18 pages |
+| `IR&C_Assignment3_slides_GroupE.pdf` | Combined presentation slides (Parts A–E + Q&A appendix), 54 pages |
+| `IR&C_Assignment3_report_GroupE.tex`, `IR&C_Assignment3_slides_GroupE.tex` | LaTeX sources |
 | `slides_speaker_notes.txt`, `slides_speaker_notes.docx` | Speaker scripts for the Part E section of the talk |
 
 ---
@@ -91,11 +91,11 @@ All Part E figures land in `processed/` and are picked up automatically by `repo
 ### 6. Rebuild the report and slides
 
 ```bash
-pdflatex report.tex
-pdflatex slides.tex
+pdflatex "IR&C_Assignment3_report_GroupE.tex"
+pdflatex "IR&C_Assignment3_slides_GroupE.tex"
 ```
 
-`slides.tex` reads figures from `figures/` (A–D) and `processed/` (E). `report.tex` reads from both via `\graphicspath`.
+The slides read figures from `figures/` (A–D) and `processed/` (E); the report reads from both via `\graphicspath`.
 
 ---
 
@@ -104,8 +104,8 @@ pdflatex slides.tex
 ```
 Assignment3/
 ├── README.md                          ← this file
-├── report.tex, report.pdf             ← combined report (18 pp)
-├── slides.tex, slides.pdf             ← combined slides (54 pp)
+├── IR&C_Assignment3_report_GroupE.{tex,pdf}  ← combined report (18 pp)
+├── IR&C_Assignment3_slides_GroupE.{tex,pdf}  ← combined slides (54 pp)
 ├── slides_speaker_notes.txt           ← speaker script (Part E)
 ├── slides_speaker_notes.docx          ← dot-point script
 │
